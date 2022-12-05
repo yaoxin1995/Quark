@@ -53,7 +53,7 @@ pub struct CreateOps {
 
 pub struct DirInternal {
     pub CreateOps: CreateOps,
-    pub children: BTreeMap<String, Inode>,
+    pub children: BTreeMap<String, Inode>,    // the inode that represent subdir or file in the dir
     pub dentryMap: DentMap,
 
     pub fsType: u64,
@@ -64,6 +64,7 @@ pub struct DirInternal {
 
 impl DirInternal {
     pub fn walk(&self, p: &str) -> Result<Inode> {
+        
         match self.children.get(p) {
             None => Err(Error::SysError(SysErr::ENOENT)),
             Some(i) => Ok(i.clone()),
@@ -72,7 +73,7 @@ impl DirInternal {
 
     pub fn addChild(&mut self, task: &Task, name: &str, inode: &Inode) {
         let stableAttr = inode.lock().StableAttr().clone();
-
+        info!("AddChild name 222:{:?}", name);
         self.children.insert(name.to_string(), inode.clone());
         self.dentryMap.Add(
             name,
@@ -192,7 +193,8 @@ impl Dir {
 
     pub fn AddChild(&self, task: &Task, name: &str, inode: &mut Inode) {
         let mut dir = self.write();
-
+        
+        info!("AddChild name 111:{:?}", name);
         dir.addChild(task, name, inode);
     }
 
@@ -244,7 +246,9 @@ impl InodeOperations for Dir {
 
         let d = self.read();
 
+
         let inode = d.walk(name)?;
+        info!("Lookup name 11111:{:?}", name);
 
         return Ok(Dirent::New(&inode, name));
     }
@@ -446,6 +450,7 @@ impl InodeOperations for Dir {
         dirent: &Dirent,
         flags: FileFlags,
     ) -> Result<File> {
+        info!("dir GetFile name {:?}",dirent.Name());
         let mut flags = flags;
         flags.Pread = true;
 

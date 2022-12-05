@@ -179,7 +179,7 @@ pub struct Task {
 
     pub fdTbl: FDTable,
 
-    pub fsContext: FSContext,
+    pub fsContext: FSContext,   // file system context
 
     pub mountNS: MountNs,
     pub blocker: Blocker,

@@ -281,13 +281,14 @@ pub fn TryOpenAt(dirfd: i32, name: &str) -> Result<(i32, bool, LibcStat)> {
     };
     let cstr = CString::New(&name);
 
+    info!("TryOpenAt name: {:?}", name);
     let ret = HostSpace::TryOpenAt(dirfd, cstr.Ptr(), &mut tryopen as *mut TryOpenStruct as u64);
 
     if ret < 0 {
         return Err(Error::SysError(-ret as i32));
     }
 
-    return Ok((ret as i32, tryopen.writeable, fstat));
+    return Ok((ret as i32, tryopen.writeable, fstat));  // return: hostfd, if file is writeable, fd state
 }
 
 pub fn OpenAt(dirfd: i32, name: &str, flags: i32) -> Result<(i32, LibcStat)> {

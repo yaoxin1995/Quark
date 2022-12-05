@@ -1220,6 +1220,7 @@ impl Dirent {
                 None => (),
                 Some(p) => {
                     let name = self.Name();
+                    info!("InotifyEvent name {:?}", name);
                     p.Watches().Notify(&name,
                                                event,
                                                cookie,
@@ -1283,7 +1284,7 @@ impl Default for DirentInternal {
 pub struct DirentMain {
     pub Inode: Inode,
     pub Name: String,
-    pub Parent: Option<Dirent>,
+    pub Parent: Option<Dirent>,  // parent dirent
     pub mounted: bool,
     pub deleted: bool,
 }

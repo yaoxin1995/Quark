@@ -80,13 +80,13 @@ impl Drop for Master {
 
 impl Master {
     pub fn new(path: *const ::libc::c_char) -> Result<Self> {
-        info!("before open");
+        info!("master pty before open");
         let res = match Self::open(path, libc::O_RDWR, None) {
             Err(e) => Err(e),
             Ok(fd) => Ok(Master { pty: fd }),
         };
-
-        info!("after open");
+        
+        info!("master pty after open, is_ok {:?}", res.is_ok());
         return res;
     }
 

@@ -117,8 +117,8 @@ impl Context {
 #[repr(C)]
 #[repr(align(128))]
 pub struct Scheduler {
-    pub queue: Vec<CachePadded<TaskQueue>>,
-    pub vcpuCnt: usize,
+    pub queue: Vec<CachePadded<TaskQueue>>,   // 每个vcpu 有一个 queue 用于放置 ready task
+    pub vcpuCnt: usize,    // vcpu 的数量
     pub taskCnt: AtomicUsize,
 
     // use AtomicIsize instead of usize to handle the race condition

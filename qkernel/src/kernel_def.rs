@@ -274,6 +274,7 @@ pub fn Invlpg(addr: u64) {
 pub fn HyperCall64(type_: u16, para1: u64, para2: u64, para3: u64, para4: u64) {
     unsafe {
         let data: u8 = 0;
+        // Copies the value from the second operand (al) (source operand) to the I/O port (dx) specified with the destination operand (first operand)
         asm!("
             out dx, al
             ",

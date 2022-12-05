@@ -80,7 +80,7 @@ fn CreateRootMount(
 
 pub fn AddSubmountOverlay(task: &Task, inode: &Inode, submounts: &Vec<String>) -> Result<Inode> {
     let msrc = Arc::new(QMutex::new(MountSource::NewPseudoMountSource()));
-    let mountTree = MakeDirectoryTree(task, &msrc, submounts)?;
+    let mountTree = MakeDirectoryTree(task, &msrc, submounts)?;    // 将submounts 中的 dir 加入到 mountTree 中， mountTree是 rootdir
 
     let overlayInode = NewOverlayRoot(task, inode, &mountTree, &MountSourceFlags::default())?;
     return Ok(overlayInode);
@@ -290,6 +290,7 @@ fn MakeMountPoint(task: &Task, mns: &MountNs, root: &Dirent, path: &str) -> Resu
     match res {
         Ok(_) => {
             // The mount point exists already, we are done
+            info!("The mount point exists already, we are done");
             return Ok(());
         }
         _ => {
@@ -325,7 +326,7 @@ fn MountSubmount(
 
     let mut inode = filesystem
         .lock()
-        .Mount(task, &"none".to_string(), &mf, &opts.join(","))?;
+        .Mount(task, "none", &mf, &opts.join(","))?;    // 初始化该 在该 file system,获得 代表该 mount point 的inode
     let submounts = SubTargets(&m.destination, mounts);
     if submounts.len() > 0 {
         info!("adding submount overlay over {}", m.destination);

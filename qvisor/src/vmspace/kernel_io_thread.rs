@@ -49,7 +49,7 @@ impl KIOThread {
         if QUARK_CONFIG.lock().EnableRDMA {
             count += GlobalRDMASvcCli().ProcessRDMASvcMessage();
         }
-        count += IOURING.IOUring().HostSubmit().unwrap();
+        count += IOURING.IOUring().HostSubmit().unwrap();   //submit ios queued in submitq to kernel
         TIMER_STORE.Trigger();
         count += IOURING.IOUring().HostSubmit().unwrap();
         count += IOURING.DrainCompletionQueue();

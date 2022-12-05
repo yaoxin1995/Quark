@@ -202,7 +202,7 @@ impl Filesystem for WhitelistFileSystem {
         if remove {
             options.remove(&ROOT_PATH_KEY.to_string());
         }
-
+        info!("Mount tryopen: {:?}", rootPath);
         let (fd, writable, _) = TryOpenAt(-100, &rootPath)?;
 
         if fd < 0 {

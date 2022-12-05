@@ -548,7 +548,7 @@ impl KVMVcpu {
                                 return Ok(());
                             }
 
-                            //error!("HYPERCALL_IOWAIT sleeping ...");
+                            error!("HYPERCALL_IOWAIT sleeping ...");
                             match KERNEL_IO_THREAD.Wait(&SHARE_SPACE) {
                                 Ok(()) => (),
                                 Err(Error::Exit) => {
@@ -569,7 +569,7 @@ impl KVMVcpu {
                                     panic!("KERNEL_IO_THREAD get error {:?}", e);
                                 }
                             }
-                            //error!("HYPERCALL_IOWAIT waking ...");
+                            error!("HYPERCALL_IOWAIT waking ...");
                         }
                         qlib::HYPERCALL_URING_WAKE => {
                             let minComplete = para1 as usize;
@@ -736,7 +736,7 @@ impl KVMVcpu {
                         qlib::HYPERCALL_HCALL => {
                             let addr = para1;
 
-                            let eventAddr = addr as *mut QMsg; // as &mut qlib::Event;
+                            let eventAddr = addr as *mut QMsg; // as &mut qlib::Event;  先转换位raw pointer 
                             let qmsg = unsafe { &mut (*eventAddr) };
 
                             {

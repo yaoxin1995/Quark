@@ -635,6 +635,8 @@ impl Container {
         io: &ContainerIO,
         pivot: bool,
     ) -> Result<Self> {
+        // Create container b6c66953e59acc817293dcd5fe25e2b67e390507aca6ec1bcb0f3107e698514b in root dir: k8s.io, 
+        // bundleDir /run/containerd/io.containerd.runtime.v2.task/k8s.io/b6c66953e59acc817293dcd5fe25e2b67e390507aca6ec1bcb0f3107e698514b
         info!("Create container {} in root dir: {}, bundleDir {}", id, &conf.RootDir, bundleDir);
         //debug!("container spec is {:?}", &spec);
         ValidateID(id)?;
@@ -881,7 +883,7 @@ impl Container {
 
     // Start starts running the containerized process inside the sandbox.
     pub fn Start(&mut self) -> Result<()> {
-        info!("Start container {}", &self.ID);
+        info!("Start container1111111 {}", &self.ID);
 
         let _unlockRoot = maybeLockRootContainer(&self.BundleDir, &self.Spec, &self.RootContainerDir)?;
 

@@ -58,7 +58,7 @@ impl Process {
 
 #[derive(Eq, Debug)]
 pub struct ExecID {
-    pub cid: String,
+    pub cid: String,   // container ID
     pub pid: ThreadID,
 }
 
@@ -216,6 +216,8 @@ impl Loader {
         let kernel = self.Lock(task)?.kernel.clone();
         let (tg, tid) = kernel.CreateProcess(procArgs)?;
         let paths = GetPath(&procArgs.Envv);
+
+        error!("ResolveExecutablePath wd: {:?} Filename: {:?}, paths: {:?}，Envv {:?}", procArgs.WorkingDirectory, procArgs.Filename, paths, procArgs.Envv);
         procArgs.Filename = task.mountNS.ResolveExecutablePath(
             task,
             &procArgs.WorkingDirectory,
@@ -272,7 +274,7 @@ impl Loader {
     }
 
     pub fn CreateSubContainer(&self, cid: String, fds: Vec<i32>) -> Result<()> {
-        let tty = if fds.len() == 0 { fds[0] } else { -1 };
+        let tty = if fds.len() == 1 { fds[0] } else { -1 };
         let stdios = if fds.len() == 3 {
             [fds[0], fds[1], fds[2]]
         } else {

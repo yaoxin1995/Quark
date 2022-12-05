@@ -45,6 +45,7 @@ pub struct ContainerFactory {}
 
 impl ContainerFactory {
     pub fn Create(ns: &str, req: &CreateTaskRequest) -> Result<CommonContainer> {
+        info!("create ContainerFactory req: {:?}", req);
         let bundle = req.bundle.as_str();
         let mut opts = Options::new();
         if let Some(any) = req.options.as_ref() {
@@ -55,12 +56,15 @@ impl ContainerFactory {
         if opts.compute_size() > 0 {
             debug!("create options: {:?}", &opts);
         }
+
+        info!("create ContainerFactory opts: {:?}", opts);
         let runtime = opts.binary_name.as_str();
         write_options(bundle, &opts)
             .map_err(|e| Error::Common(format!("ContainerFactory {:?}", e)))?;
         write_runtime(bundle, runtime)
-            .map_err(|e| Error::Common(format!("ContainerFactory {:?}", e)))?;
+            .map_err(|e| Error::Common(format!("ContainerFactory {:?}", e)))?;    // 向 runtime 以及 opts stru 中写数据
 
+        info!("create ContainerFactory opts: {:?}", opts);
         let rootfs_vec = req.get_rootfs().to_vec();
         let rootfs = if !rootfs_vec.is_empty() {
             let tmp_rootfs = Path::new(bundle).join("rootfs");
@@ -121,6 +125,7 @@ impl ContainerFactory {
             SystemdCgroup: false,
         };
 
+        info!("create ContainerFactory init: {:?}", init);
         let container = init
             .Create(&config)
             .map_err(|e| Error::Common(format!("ttrpc error is {:?}", e)))?;

@@ -271,9 +271,15 @@ impl Task for ShimTask {
     fn start(&self, _ctx: &TtrpcContext, req: StartRequest) -> TtrpcResult<StartResponse> {
         info!("shim: Start request for {:?}", &req);
         let mut containers = self.containers.lock().unwrap();
+        /*
+            Chaining results using match can get pretty untidy; luckily, the ? operator can be used to make things pretty again. ? is used 
+            at the end of an expression returning a Result, and is equivalent to a match expression, where the Err(err) branch expands to 
+            an early return Err(From::from(err)), and the Ok(ok) branch expands to an ok expression. 
+        */
         let container = containers.get_mut(req.get_id()).ok_or_else(|| {
             TtrpcError::NotFoundError(format!("can not find container by id {}", req.get_id()))
-        })?;
+        })?;   
+
         let pid = container
             .start(req.exec_id.as_str().none_if(|&x| x.is_empty()))
             .map_err(|e| TtrpcError::Other(format!("{:?}", e)))?;

@@ -48,7 +48,7 @@ fn emptyDir(task: &Task, msrc: &Arc<QMutex<MountSource>>) -> Inode {
         DeviceFileMajor: 0,
         DeviceFileMinor: 0,
     };
-
+    
     let inodeInternal = InodeIntern {
         UniqueId: NewUID(),
         InodeOp: dir.into(),
@@ -118,6 +118,7 @@ pub fn MakeDirectoryTree(
             return Err(Error::Common("cannot add subdir at".to_string()));
         }
 
+        info!("makeSubdir subdir {:?},", subdir);
         makeSubdir(task, msrc, &dir, &subdir);
     }
 

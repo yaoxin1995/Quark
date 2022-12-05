@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::print;
 use crate::qlib::mutex::*;
 use alloc::string::String;
 use alloc::string::ToString;
@@ -93,13 +94,18 @@ pub fn overlayLookup(
         }
     }
 
+    debug!("parent overlay upperInode return Error::SysError(SysErr::ENOENT)");
+
     if parent.lower.is_some() {
         let lower = parent.lower.as_ref().unwrap().clone();
         match lower.Lookup(task, name) {
             Ok(child) => {
+                debug!("1");
                 if upperInode.is_none() {
+                    debug!("2");
                     lowerInode = Some(child.Inode());
                 } else {
+                    debug!("3");
                     let childInode = child.Inode();
                     if upperInode.as_ref().unwrap().StableAttr().Type
                         == childInode.StableAttr().Type
@@ -111,11 +117,15 @@ pub fn overlayLookup(
                 }
             }
             Err(Error::SysError(SysErr::ENOENT)) => {
+                debug!("4");
                 lowerInode = None;
             }
             Err(e) => return Err(e),
+
         }
+        debug!("5");
     }
+    debug!("6");
 
     if upperInode.is_none() && lowerInode.is_none() {
         return Err(Error::SysError(SysErr::ENOENT));
@@ -473,6 +483,7 @@ pub fn overlayGetFile(
     let overlay = o.read();
 
     if overlay.upper.is_some() {
+        info!("overlayGetFile overlay.upper");
         let upperInode = overlay.upper.as_ref().unwrap().clone();
         let upper = OverlayFile(task, &upperInode, &flags)?;
 

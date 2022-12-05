@@ -193,7 +193,7 @@ impl IoUring {
             }
 
             if count > 0 {
-                let ret = self.SubmitEntry(count)?;
+                let ret = self.SubmitEntry(count)?;   
                 return Ok(ret);
             } else {
                 return Ok(0)

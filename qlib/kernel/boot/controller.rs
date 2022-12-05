@@ -42,6 +42,7 @@ pub fn ControllerProcessHandler() -> Result<()> {
     let task = Task::Current();
     loop {
         let fd = IOURING.SyncAccept(task, SHARESPACE.controlSock);
+        info!("ControllerProcessHandler111111324234234234d");
         taskMgr::CreateTask(ControlMsgHandler as u64, fd as *const u8, false);
     }
 }
@@ -151,7 +152,7 @@ pub fn ControlMsgHandler(fd: *const u8) {
     let mut msg = ControlMsg::default();
     Kernel::HostSpace::ReadControlMsg(fd, &mut msg as * mut _ as u64);
 
-    //info!("payload: {:?}", &msg.payload);
+    info!("payload1111111: {:?}", &msg.payload);
     //defer!(error!("payload handling ends"));
     match msg.payload {
         Payload::Pause => {

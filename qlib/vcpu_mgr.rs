@@ -45,7 +45,7 @@ pub struct CPULocal {
     pub waitTask: AtomicU64,         //offset 24
     pub currentTask: AtomicU64,      //offset 32
     pub pendingFreeStack: AtomicU64, //offset 40
-    pub state: AtomicU64,            //offset 48
+    pub state: AtomicU64,            //offset 48    current cpu state: wait/running etc...
 
     pub switchCount: AtomicU64,
     pub uringMsgCount: AtomicU64,

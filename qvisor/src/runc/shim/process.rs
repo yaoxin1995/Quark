@@ -48,7 +48,7 @@ pub struct Console {
     pub termios: Termios,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CommonProcess {
     pub state: Status,
     pub id: String,
@@ -270,7 +270,7 @@ pub fn get_spec_from_request(req: &ExecProcessRequest) -> Result<oci::Process> {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct InitProcess {
     pub common: CommonProcess,
     pub bundle: String,

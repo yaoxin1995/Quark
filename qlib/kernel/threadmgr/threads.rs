@@ -272,7 +272,7 @@ impl TaskSet {
         let leader = tg.lock().leader.Upgrade();
         if leader.is_none() {
             tg.lock().leader = t.Downgrade();
-            let parentPG = tg.parentPG();
+            let parentPG = tg.parentPG();  // parent process group
             if parentPG.is_none() {
                 tg.createSession().unwrap();
             } else {

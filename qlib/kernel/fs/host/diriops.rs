@@ -350,6 +350,7 @@ impl InodeOperations for HostDirOp {
     }
 
     fn Lookup(&self, task: &Task, parent: &Inode, name: &str) -> Result<Dirent> {
+        info!("hostdirop Lookup: {:?}", name);
         let (fd, writeable, fstat) = match TryOpenAt(self.HostFd(), name) {
             Err(Error::SysError(SysErr::ENOENT)) => {
                 let inode = match self.lock().overrides.get(name) {
@@ -362,7 +363,7 @@ impl InodeOperations for HostDirOp {
             Err(e) => return Err(e),
             Ok(d) => d,
         };
-
+        info!("hostdirop ok: {:?}", name);
         let ms = parent.lock().MountSource.clone();
         let inode = Inode::NewHostInode(task, &ms, fd, &fstat, writeable, false)?;
 

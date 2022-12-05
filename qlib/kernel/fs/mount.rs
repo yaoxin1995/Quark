@@ -282,7 +282,7 @@ impl MountNs {
         wd: &Option<Dirent>,
         path: &'a str,
     ) -> Option<(Dirent, &'a str, &'a str)> {
-        let (mut first, mut remain) = SplitFirst(path);
+        let (mut first, mut remain) = SplitFirst(path);   // /dev/ssd -> first: /, remain: dev/ssd
 
         let mut current = match wd {
             None => root.clone(),
@@ -295,7 +295,7 @@ impl MountNs {
             }
 
             current = root.clone();
-            let (tfirst, tremain) = SplitFirst(remain);
+            let (tfirst, tremain) = SplitFirst(remain);  // first dev, remain "", current : root
             first = tfirst;
             remain = tremain;
         }
@@ -358,7 +358,7 @@ impl MountNs {
             return Err(Error::SysError(SysErr::ENOENT));
         }
 
-        let (mut current, mut first, mut remain) = match self.InitPath(root, &wd, path) {
+        let (mut current, mut first, mut remain) = match self.InitPath(root, &wd, path) {   // curent: root, first: dev, remain: ""
             None => return Ok(root.clone()),
             Some(res) => res,
         };
@@ -366,6 +366,8 @@ impl MountNs {
         let mut remainStr;
 
         let mut contexts = Vec::new();
+
+        info!("FindDirent path{:?}, first {:?}, remain{:?}",path, first, remain);
 
         loop {
             let currentInode = current.Inode();

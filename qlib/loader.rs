@@ -43,7 +43,7 @@ pub struct Process {
     pub limitSet: LimitSetInternal,
     pub ID: String,
 
-    pub Root: String,
+    pub Root: String,   // root dir
     pub Stdiofds: [i32; 3],
     pub ExecId: Option<String>,
 }

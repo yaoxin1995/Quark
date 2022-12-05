@@ -72,7 +72,7 @@ pub enum UringOp {
     Statx(StatxOp),
     Fsync(FsyncOp),
     Splice(SpliceOp),
-    Accept(AcceptOp),
+    Accept(AcceptOp),    // accept new connection
 }
 
 impl Default for UringOp {

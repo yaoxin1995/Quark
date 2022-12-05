@@ -53,10 +53,10 @@ pub struct IoUring {
     pub lock: QMutex<()>,
     pub params: Parameters,
     pub memory: MemoryMap,
-    pub sq: QMutex<SubmissionQueue>,
-    pub cq: QMutex<CompletionQueue>,
-    pub submitq: QMutex<VecDeque<squeue::Entry>>,
-    pub completeq: QMutex<VecDeque<cqueue::Entry>>,
+    pub sq: QMutex<SubmissionQueue>,       //  代表 iouring 的 submission queue
+    pub cq: QMutex<CompletionQueue>,       // 代表 iouring 的 completion queue
+    pub submitq: QMutex<VecDeque<squeue::Entry>>,    // 存储即将要放入sq中的entry
+    pub completeq: QMutex<VecDeque<cqueue::Entry>>,   // 将 cq中完成的 entry 移到completeq中
 }
 
 impl IoUring {

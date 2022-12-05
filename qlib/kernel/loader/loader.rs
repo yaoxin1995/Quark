@@ -275,6 +275,9 @@ pub fn Load(
     envv: &[String],
     extraAuxv: &[AuxEntry],
 ) -> Result<(u64, u64, u64)> {
+
+    info!("load,  filename: {:?}, argv: {:?}, argv: {:?}, extraAuxv: {:?}", filename, argv, envv, extraAuxv);
+
     let vdsoAddr = LoadVDSO(task)?;
 
     let (loaded, executable, tmpArgv) = LoadExecutable(task, filename, argv)?;
@@ -289,6 +292,8 @@ pub fn Load(
     if name.len() > TASK_COMM_LEN - 1 {
         name = &name[0..TASK_COMM_LEN - 1];
     }
+
+    info!("Load name {:?}", name);
 
     task.thread.as_ref().unwrap().lock().name = name.to_string();
 

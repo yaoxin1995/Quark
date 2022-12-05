@@ -1065,6 +1065,7 @@ impl InodeOperations for HostInodeOp {
     }
 
     fn WouldBlock(&self) -> bool {
+        
         return self.lock().WouldBlock;
     }
 
@@ -1166,6 +1167,7 @@ impl InodeOperations for HostInodeOp {
         dirent: &Dirent,
         flags: FileFlags,
     ) -> Result<File> {
+        info!("host GetFile name {:?}",dirent.Name());
         let fops = self.GetHostFileOp(task);
 
         let inode = dirent.Inode();

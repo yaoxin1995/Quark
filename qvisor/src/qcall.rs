@@ -112,7 +112,7 @@ impl KVMVcpu {
             Msg::Fstatfs(msg) => {
                 ret = super::VMSpace::Fstatfs(msg.fd, msg.buf) as u64;
             }
-            Msg::TryOpenAt(msg) => {
+            Msg::TryOpenAt(msg) => {    //Try open directory 
                 ret = super::VMSpace::TryOpenAt(msg.dirfd, msg.name, msg.addr) as u64;
             }
             Msg::OpenAt(msg) => {

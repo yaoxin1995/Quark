@@ -578,12 +578,17 @@ impl Inode {
 
     pub fn Lookup(&self, task: &Task, name: &str) -> Result<Dirent> {
         let isOverlay = self.lock().Overlay.is_some();
+        info!("Lookup name {:?} 111111111111", name);
         if isOverlay {
-            let overlay = self.lock().Overlay.as_ref().unwrap().clone();
+            info!("isOverlay 111111111111");
+            let overlay = self.lock().
+            Overlay.as_ref()
+            .unwrap().
+            clone();
             let (dirent, _) = overlayLookup(task, &overlay, self, name)?;
             return Ok(dirent);
         }
-
+        info!("Lookuo 111111222111111");
         let iops = self.lock().InodeOp.clone();
         let res = iops.Lookup(task, self, name);
         return res;
@@ -778,10 +783,11 @@ impl Inode {
     pub fn GetFile(&self, task: &Task, dirent: &Dirent, flags: &FileFlags) -> Result<File> {
         let isOverlay = self.lock().Overlay.is_some();
         if isOverlay {
+            info!("get file overlay, {:?}", dirent.Name());
             let overlay = self.lock().Overlay.as_ref().unwrap().clone();
             return overlayGetFile(task, &overlay, dirent, flags);
         }
-
+        info!("get file not overlay, {:?}", dirent.Name());
         let op = self.lock().InodeOp.clone();
         let res = op.GetFile(task, self, dirent, *flags);
         return res;
@@ -1105,7 +1111,7 @@ impl Inode {
     }
 }
 
-//#[derive(Clone, Default, Debug, Copy)]
+//#[derive(Clone, Debug)]
 pub struct InodeIntern {
     pub UniqueId: u64,
     pub InodeOp: Iops,
