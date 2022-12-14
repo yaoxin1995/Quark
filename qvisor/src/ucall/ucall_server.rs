@@ -27,7 +27,7 @@ use super::usocket::*;
 pub fn ReadControlMsg(fd: i32) -> Result<ControlMsg> {
     let usock = USocket { socket: fd };
 
-    let (mut req, fds) = match usock.GetReq() {
+    let (mut req, fds) = match usock.GetReq() {    // in exec case, req: ExecArgs, fds: pty master and slave
         Ok((req, fds)) => (req, fds),
         Err(e) => {
             let err = UCallResp::UCallRespErr(format!("{:?}", e));

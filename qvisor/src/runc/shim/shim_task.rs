@@ -400,9 +400,10 @@ impl Task for ShimTask {
 
     fn exec(&self, _ctx: &TtrpcContext, req: ExecProcessRequest) -> TtrpcResult<Empty> {
         info!(
-            "Exec request for id: {} exec_id: {}",
+            "Exec request for id: {} exec_id: {}, req {:?}",
             req.get_id(),
-            req.get_exec_id()
+            req.get_exec_id(),
+            req
         );
         let mut containers = self.containers.lock().unwrap();
         let container = containers.get_mut(req.get_id()).ok_or_else(|| {
