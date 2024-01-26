@@ -21,8 +21,6 @@ use super::super::super::bytestream::*;
 use super::super::super::common::*;
 use super::super::super::object_ref::*;
 pub use super::super::super::uring::cqueue;
-pub use super::super::super::uring::cqueue::CompletionQueue;
-pub use super::super::super::uring::squeue::SubmissionQueue;
 pub use super::super::super::uring::*;
 use super::super::fs::file::*;
 use super::super::task::*;
@@ -158,36 +156,6 @@ impl QUring {
         return self.UCall(task, msg);
     }
 
-    pub fn AsyncTimerRemove(&self, userData: u64) -> usize {
-        let ops = AsyncTimerRemove::New(userData);
-        let idx = self.AUCall(AsyncOps::AsyncTimerRemove(ops));
-        return idx;
-    }
-
-    pub fn Timeout(&self, expire: i64, timeout: i64) -> usize {
-        let ops = AsyncTimeout::New(expire, timeout);
-        let idx = self.AUCall(AsyncOps::AsyncTimeout(ops));
-
-        return idx;
-    }
-
-    pub fn UnblockPollAdd(&self, fd: i32, flags: u32, wait: &MultiWait) -> Future<EventMask> {
-        let future = Future::New(0 as EventMask);
-        let ops = UnblockBlockPollAdd::New(fd, flags, wait, &future);
-        let timeout = AsyncLinkTimeout::New(0);
-        self.AUCallLinked(
-            AsyncOps::UnblockBlockPollAdd(ops),
-            AsyncOps::AsyncLinkTimeout(timeout),
-        );
-        return future;
-    }
-
-    pub fn RawTimeout(&self, _task: &Task, timerId: u64, seqNo: u64, ns: i64) -> usize {
-        let ops = AsyncRawTimeout::New(timerId, seqNo, ns);
-        let idx = self.AUCall(AsyncOps::AsyncRawTimeout(ops));
-
-        return idx;
-    }
 
     pub fn EpollCtl(&self, epollfd: i32, fd: i32, op: i32, mask: u32) -> usize {
         let ops = AsyncEpollCtl::New(epollfd, fd, op, mask);
@@ -258,25 +226,6 @@ impl QUring {
         self.AUCall(AsyncOps::AsyncLogFlush(ops));
     }
 
-    pub fn EventfdWrite(&self, fd: i32) {
-        let ops = AsyncEventfdWrite::New(fd);
-        self.AUCall(AsyncOps::AsyncEventfdWrite(ops));
-    }
-
-    pub fn AsyncStatx(
-        &self,
-        dirfd: i32,
-        pathname: u64,
-        flags: i32,
-        mask: u32,
-        mw: &MultiWait,
-    ) -> Future<Statx> {
-        let future = Future::New(Statx::default());
-        let ops = AsyncStatx::New(dirfd, pathname, flags, mask, future.clone(), mw);
-
-        self.AUCall(AsyncOps::AsyncStatx(ops));
-        return future;
-    }
 
     pub fn Fsync(&self, task: &Task, fd: i32, dataSyncOnly: bool) -> i64 {
         let msg = UringOp::Fsync(FsyncOp {

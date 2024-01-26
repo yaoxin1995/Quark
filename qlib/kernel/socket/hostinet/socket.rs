@@ -42,7 +42,6 @@ use super::super::super::fs::file::*;
 use super::super::super::fs::flags::*;
 use super::super::super::fs::host::hostinodeop::*;
 use super::super::super::guestfdnotifier::*;
-use super::super::super::kernel::async_wait::*;
 use super::super::super::kernel::fd_table::*;
 use super::super::super::kernel::kernel::GetKernel;
 use super::super::super::kernel::time::*;
@@ -514,20 +513,6 @@ impl SocketOperations {
 pub const SIZEOF_SOCKADDR: usize = SocketSize::SIZEOF_SOCKADDR_INET6;
 
 impl Waitable for SocketOperations {
-    fn AsyncReadiness(&self, _task: &Task, mask: EventMask, wait: &MultiWait) -> Future<EventMask> {
-        if self.SocketBufEnabled() {
-            let future = Future::New(0 as EventMask);
-            let ret = self.SocketBuf().Events() & mask;
-            future.Set(Ok(ret));
-            //wait.Done();
-            return future;
-        };
-
-        let fd = self.fd;
-        let future = IOURING.UnblockPollAdd(fd, mask as u32, wait);
-        return future;
-    }
-
     fn Readiness(&self, _task: &Task, mask: EventMask) -> EventMask {
         if self.SocketBufEnabled() {
             if self.tcpRDMA {
@@ -576,24 +561,6 @@ impl Waitable for SocketOperations {
 
         let fd = self.fd;
         return NonBlockingPoll(fd, mask);
-
-        /*let mv = MultiWait::New(task.GetTaskIdQ());
-        error!("Readiness 1");
-        let future = self.AsyncReadiness(task, mask, &mv);
-        error!("Readiness 2");
-        mv.Wait();
-        error!("Readiness 3");
-        match future.Wait() {
-            Ok(ret) => {
-                error!("Readiness 4");
-
-                return ret
-            },
-            Err(_) => {
-                error!("Readiness 5");
-                return 0
-            },
-        }*/
     }
 
     fn EventRegister(&self, task: &Task, e: &WaitEntry, mask: EventMask) {
