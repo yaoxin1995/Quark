@@ -21,7 +21,7 @@ use core::sync::atomic::fence;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering;
-use SHARESPACE;
+use crate::qlib::kernel::SHARESPACE;
 
 cfg_x86_64! {
    pub use x86_64::structures::paging::page_table::PageTableEntry;
