@@ -43,7 +43,6 @@ pub struct Config {
     #[serde(default)]
     pub Sandboxed: bool,
     pub Realtime: bool,
-    pub EnableIOBuf: bool,
     pub EnableHibernante: bool,
 }
 
@@ -90,7 +89,6 @@ impl Default for Config {
             TlbShootdownWait: false,
             Sandboxed: false,
             Realtime: false,
-            EnableIOBuf: false,
             EnableHibernante: false,
         };
     }
