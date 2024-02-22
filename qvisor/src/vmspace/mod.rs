@@ -62,7 +62,6 @@ use super::namespace::MountNs;
 use super::qlib::addr::Addr;
 use super::qlib::common::{Error, Result};
 use super::qlib::control_msg::*;
-use super::qlib::kernel::SignalProcess;
 use super::qlib::linux::membarrier::*;
 use super::qlib::linux_def::*;
 use super::qlib::pagetable::PageTables;
@@ -77,6 +76,9 @@ use super::runc::runtime::signal_handle::*;
 use super::runc::specutils::specutils::*;
 use super::ucall::usocket::*;
 use super::*;
+
+
+
 
 const ARCH_SET_GS: u64 = 0x1001;
 const ARCH_SET_FS: u64 = 0x1002;
@@ -129,6 +131,7 @@ pub struct VMSpace {
     pub haveMembarrierGlobal: bool,
     pub haveMembarrierPrivateExpedited: bool,
 }
+
 
 unsafe impl Sync for VMSpace {}
 unsafe impl Send for VMSpace {}
@@ -1923,11 +1926,6 @@ impl VMSpace {
         }
 
         return 0;
-    }
-
-    pub fn Signal(&self, signal: SignalArgs) {
-        SignalProcess(&signal);
-        //SHARE_SPACE.AQHostInputCall(&HostInputMsg::Signal(signal));
     }
 
     pub fn LibcFstat(osfd: i32) -> Result<LibcStat> {

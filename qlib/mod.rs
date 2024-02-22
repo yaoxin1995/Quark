@@ -100,7 +100,6 @@ use core::sync::atomic::Ordering;
 
 use self::bytestream::*;
 use self::config::*;
-use self::control_msg::SignalArgs;
 use self::fileinfo::*;
 use self::hiber_mgr::*;
 use self::kernel::kernel::futex::*;
@@ -1132,8 +1131,6 @@ pub struct ShareSpace {
 
     // Qcall specific
     pub QOutput: QRingQueue<HostOutputMsg>, //QMutex<VecDeque<HostInputMsg>>,
-
-
     
     // scheduler specific 
     pub scheduler: task_mgr::Scheduler,               
@@ -1150,8 +1147,6 @@ pub struct ShareSpace {
     // Timer specific
     pub timerkeeper: CachePadded<TimeKeeper>,   
     pub timerStore: CachePadded<TimerStore>,
-
-    pub signalArgs: CachePadded<QMutex<Option<SignalArgs>>>,   // for compatibility
     
     pub futexMgr: CachePadded<FutexMgr>,
 
@@ -1178,7 +1173,6 @@ pub struct ShareSpace {
     pub controlSock: i32,
     pub hostEpollfd: AtomicI32,
 
-    pub signalHandlerAddr: CachePadded<AtomicU64>,
     pub uid: CachePadded<AtomicU64>,
 
     // only used in qkernel
@@ -1205,14 +1199,6 @@ impl ShareSpace {
 
     pub fn SetIOUringsAddr(&self, addr: u64) {
         self.ioUring.SetIOUringsAddr(addr);
-    }
-
-    pub fn SetSignalHandlerAddr(&self, addr: u64) {
-        self.signalHandlerAddr.store(addr, Ordering::SeqCst);
-    }
-
-    pub fn SignalHandlerAddr(&self) -> u64 {
-        return self.signalHandlerAddr.load(Ordering::Relaxed);
     }
 
     pub fn StoreShutdown(&self) {
