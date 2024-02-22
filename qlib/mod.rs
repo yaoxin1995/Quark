@@ -104,7 +104,6 @@ use self::control_msg::SignalArgs;
 use self::fileinfo::*;
 use self::hiber_mgr::*;
 use self::kernel::kernel::futex::*;
-use self::kernel::kernel::kernel::Kernel;
 use self::kernel::kernel::timer::timekeeper::*;
 use self::kernel::kernel::timer::timer_store::*;
 use self::kernel::memmgr::pma::*;
@@ -1152,7 +1151,6 @@ pub struct ShareSpace {
     pub timerkeeper: CachePadded<TimeKeeper>,   
     pub timerStore: CachePadded<TimerStore>,
 
-    
     pub signalArgs: CachePadded<QMutex<Option<SignalArgs>>>,   // for compatibility
     
     pub futexMgr: CachePadded<FutexMgr>,
@@ -1160,11 +1158,9 @@ pub struct ShareSpace {
     // page handler specific
     pub pageMgr: CachePadded<PageMgr>,
 
-
     pub ioMgr: CachePadded<IOMgr>,
     pub config: CachePadded<QRwLock<Config>>,
-
-
+    
     // rdma specific
     pub rdmaSvcCli: CachePadded<RDMASvcClient>,
 
@@ -1172,9 +1168,6 @@ pub struct ShareSpace {
     pub logBuf: CachePadded<QMutex<Option<ByteStream>>>,
     pub logLock: CachePadded<QMutex<()>>,   // only used on host
     pub logfd: CachePadded<AtomicI32>,   
-
-
-
 
     // serverless specific
     pub reapFileAvaiable: CachePadded<AtomicBool>,
@@ -1186,7 +1179,6 @@ pub struct ShareSpace {
     pub hostEpollfd: AtomicI32,
 
     pub signalHandlerAddr: CachePadded<AtomicU64>,
-    pub kernel: CachePadded<QMutex<Option<Kernel>>>,
     pub uid: CachePadded<AtomicU64>,
 
     // only used in qkernel
