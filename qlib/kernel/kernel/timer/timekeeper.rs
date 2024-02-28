@@ -41,6 +41,7 @@ impl Deref for TimeKeeper {
 
 impl TimeKeeper {
     pub fn Initialization(&self, vdsoParamPageAddr: u64) {
+        info!("TimeKeeper Initialization");
         {
             let mut internal = self.write();
             internal.Init(vdsoParamPageAddr);
@@ -59,10 +60,12 @@ impl TimeKeeper {
     }
 
     pub fn Addr(&self) -> u64 {
+        info!("TimeKeeper Addr");
         return self as *const _ as u64;
     }
 
     pub fn NewClock(&self, clockId: ClockID) -> Clock {
+        info!("TimeKeeper NewClock");
         let c = TimeKeeperClock {
             tk: self.clone(),
             c: clockId,
@@ -72,14 +75,17 @@ impl TimeKeeper {
     }
 
     pub fn Update(&self) {
+        info!("TimeKeeper Update");
         self.write().Update();
     }
 
     pub fn GetTime(&self, c: ClockID) -> Result<i64> {
+        info!("TimeKeeper GetTime");
         return self.read().GetTime(c);
     }
 
     pub fn BootTime(&self) -> Time {
+        info!("TimeKeeper BootTime");
         return self.read().BootTime();
     }
 }
@@ -108,6 +114,7 @@ pub struct TimeKeeperInternal {
 
 impl Default for TimeKeeperInternal {
     fn default() -> Self {
+        info!("TimeKeeper default");
         let clocks = CalibratedClocks::New();
 
         let res = Self {
@@ -125,6 +132,7 @@ impl Default for TimeKeeperInternal {
 
 impl TimeKeeperInternal {
     pub fn Init(&mut self, vdsoParamPageAddr: u64) {
+        info!("TimeKeeper TimeKeeperInternal Init");
         self.params.SetParamPageAddr(vdsoParamPageAddr);
 
         // Compute the offset of the monotonic clock from the base Clocks.
@@ -147,6 +155,7 @@ impl TimeKeeperInternal {
     }
 
     pub fn MonotonicFrequency(&self) -> u64 {
+        info!("TimeKeeper TimeKeeperInternal MonotonicFrequency");
         return self.params.vdsoParams.monotonicFrequency;
     }
 
@@ -154,7 +163,7 @@ impl TimeKeeperInternal {
         //PerfPrint();
         //super::super::super::perflog::THREAD_COUNTS.lock().Print(true);
         //super::super::super::AllocatorPrint();
-
+        info!("TimeKeeper TimeKeeperInternal Update");
         assert!(self.inited.load(Ordering::Relaxed), "TimeKeeper not inited");
         let (monotonicParams, monotonicOk, realtimeParams, realtimeOk) = self.clocks.Update();
 
@@ -183,6 +192,7 @@ impl TimeKeeperInternal {
 
     // GetTime returns the current time in nanoseconds.
     pub fn GetTime(&self, c: ClockID) -> Result<i64> {
+        info!("TimeKeeper TimeKeeperInternal GetTime");
         assert!(self.inited.load(Ordering::Relaxed), "TimeKeeper not inited");
         match self.clocks.GetTime(c) {
             Err(e) => return Err(e),
@@ -198,6 +208,7 @@ impl TimeKeeperInternal {
 
     // BootTime returns the system boot real time.
     pub fn BootTime(&self) -> Time {
+        info!("TimeKeeper TimeKeeperInternal BootTime");
         assert!(self.inited.load(Ordering::Relaxed), "TimeKeeper not inited");
         return self.bootTime;
     }
@@ -211,11 +222,13 @@ pub struct TimeKeeperClock {
 
 impl TimeKeeperClock {
     pub fn Now(&self) -> Time {
+        info!("TimeKeeper TimeKeeperClock Now");
         let now = self.tk.GetTime(self.c).expect("timekeeperClock Now fail");
         return Time::FromNs(now);
     }
 
     pub fn WallTimeUntil(&self, t: Time, now: Time) -> Duration {
+        info!("TimeKeeper TimeKeeperClock WallTimeUntil");
         return t.Sub(now);
     }
 }

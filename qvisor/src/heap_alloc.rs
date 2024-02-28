@@ -53,7 +53,7 @@ impl BitmapAllocatorWrapper {
 impl HostAllocator {
     pub const fn New() -> Self {
         return Self {
-            listHeapAddr: AtomicU64::new(MemoryDef::HEAP_OFFSET),
+            host_initialization_heap: AtomicU64::new(MemoryDef::HOST_INIT_HEAP_OFFSET),
             initialized: AtomicBool::new(false),
         };
     }
