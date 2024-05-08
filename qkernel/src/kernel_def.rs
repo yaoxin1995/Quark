@@ -260,7 +260,6 @@ pub fn HyperCall64(type_: u16, para1: u64, para2: u64, para3: u64, para4: u64) {
 #[cfg (feature = "cc")]
 #[inline(always)]
 pub fn HyperCall64_init(type_: u16, para1: u64, para2: u64, para3: u64, para4: u64) {
-
     let share_para_page  = MemoryDef::hcall_page_gpa() as *mut ShareParaPage;
     let share_para =unsafe{&mut (*share_para_page).SharePara[0]};
     share_para.para1 = para1;
@@ -367,7 +366,13 @@ pub fn child_clone(userSp: u64) {
 
     currTask.AccountTaskEnter(SchedState::RunningApp);
     let pt = currTask.GetPtRegs();
-
+    info!("child_clone regs:{:#x?}",pt);
+    info!("ret addr:{:x}",unsafe{*(pt.rsp as *const u64)});
+    //let page = pt.rsp&!0xfff;
+    //info!("Dump page {:x}",page);
+    //for i in 0..0x200 {
+    //    info!("addr:{:x},value:{:x}",page+i*8,unsafe{*((page+i*8) as *const u64)});
+    //}
     let kernelRsp = pt as *const _ as u64;
     CPULocal::Myself().SetEnterAppTimestamp(TSC.Rdtsc());
     //currTask.mm.VcpuEnter();
@@ -403,7 +408,6 @@ impl HostAllocator {
         let privateRunningHeapEnd = privateRunningHeapStart + MemoryDef::guest_private_running_heap_size() as u64;
         
         *self.GuestPrivateAllocator()= ListAllocator::New(privateRunningHeapStart as _, privateRunningHeapEnd);
-        
         let size = core::mem::size_of::<ListAllocator>();
         self.GuestPrivateAllocator().Add(MemoryDef::guest_private_running_heap_offset_gpa() as usize + size, 
             MemoryDef::guest_private_running_heap_size() as usize - size);
@@ -418,7 +422,7 @@ impl HostAllocator {
         *self.GuestHostSharedAllocator() = ListAllocator::New(sharedHeapStart as _, shaedHeapEnd);
         
         
-        // reserve 4 pages for the listAllocator, ghcb blok and share para page
+        // reserve 4 pages for the listAllocator and share para page
         let size = 4 * MemoryDef::PAGE_SIZE as usize;
         self.GuestHostSharedAllocator().Add(MemoryDef::guest_host_shared_heap_offest_gpa() as usize + size, 
             MemoryDef::GUEST_HOST_SHARED_HEAP_SIZE as usize - size);

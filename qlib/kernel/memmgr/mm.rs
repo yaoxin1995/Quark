@@ -1052,7 +1052,7 @@ impl MemoryManager {
 
                         let page = { super::super::PAGE_MGR.AllocPage(true).unwrap() };
                         CopyPage(page, phyAddr);
-
+                        //info!("InstallPageLocked Map page addr:{:x},writeable:{}",page,writeable);
                         if writeable{
                           self.MapPageWriteLocked(pageAddr, page, exec);
                         } else {
@@ -1126,6 +1126,7 @@ impl MemoryManager {
     }
 
     pub fn MapPageWriteLocked(&self, vAddr: u64, pAddr: u64, exec: bool) {
+        //info!("MapPageWriteLocked Map page vaddr:{:x},paddr:{:x}",vAddr,pAddr);
         let pt = self.pagetable.write();
         pt.pt
             .MapPage(
@@ -1138,6 +1139,7 @@ impl MemoryManager {
     }
 
     pub fn MapPageReadLocked(&self, vAddr: u64, pAddr: u64, exec: bool) {
+        //info!("MapPageReadLocked Map page vaddr:{:x},paddr:{:x}",vAddr,pAddr);
         let pt = self.pagetable.write();
         pt.pt
             .MapPage(
@@ -1159,7 +1161,7 @@ impl MemoryManager {
         let (phyAddr, permission) = self
             .VirtualToPhyLocked(pageAddr)
             .expect(&format!("addr is {:x}", pageAddr));
-
+        info!("CopyOnWriteLocked VirtualToPhyLocked vaddr:{:x}, phyaddr:{:x}",pageAddr,phyAddr);
         if permission.Write() {
             // another thread has cow, return
             Invlpg(pageAddr);

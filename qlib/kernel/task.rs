@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "cc")]
+use crate::qlib::cc::sev_snp::snp_active;
+#[cfg(feature = "cc")]
+use crate::qlib::cc::sev_snp::C_BIT_MASK;
 use crate::qlib::mutex::*;
 use alloc::boxed::Box;
 use alloc::string::ToString;
@@ -20,11 +24,11 @@ use core::mem;
 use core::ops::Deref;
 use core::ptr;
 use core::sync::atomic::Ordering;
-use core::sync::atomic::{AtomicUsize, AtomicU64};
+use core::sync::atomic::{AtomicU64, AtomicUsize};
 
-#[cfg(feature = "cc")] 
-use crate::IS_GUEST;
 use crate::GLOBAL_ALLOCATOR;
+#[cfg(feature = "cc")]
+use crate::IS_GUEST;
 
 //use super::arch::x86_64::arch_x86::*;
 use super::super::super::kernel_def::*;
@@ -163,16 +167,14 @@ impl Drop for Task {
     }
 }
 
-
 // task wrapper on shared memory
 #[repr(C)]
 pub struct TaskWrapper {
-    pub ready: AtomicU64,  // 0x0
+    pub ready: AtomicU64, // 0x0
     // job queue id
     pub queueId: AtomicUsize,
     pub taskAddr: u64,
 }
-
 
 impl TaskWrapper {
     pub fn New(task_addr: u64) -> Self {
@@ -199,7 +201,6 @@ impl TaskWrapper {
         return self.queueId.store(queueId, Ordering::Release);
     }
 }
-
 
 #[repr(C)]
 pub struct Task {
@@ -298,7 +299,6 @@ impl Task {
         }
     }
 
-
     #[inline(always)]
     pub fn TaskAddress() -> u64 {
         let rsp = GetRsp();
@@ -314,8 +314,11 @@ impl Task {
 
     pub fn DummyTask() -> Self {
         #[cfg(feature = "cc")]
-        assert!(IS_GUEST == true, "DummyTask should only be called from guest");
-        
+        assert!(
+            IS_GUEST == true,
+            "DummyTask should only be called from guest"
+        );
+
         let creds = Credentials::default();
         let userns = creds.lock().UserNamespace.clone();
         let futexMgr = FutexMgr::default();
@@ -358,7 +361,6 @@ impl Task {
     }
 
     pub fn AccountTaskEnter(&self, state: SchedState) {
-
         let (w_task_id, _) = CPULocal::WaitTask();
         if self.taskId == w_task_id || self.exiting == true {
             return;
@@ -676,19 +678,13 @@ impl Task {
         let utsns = UTSNamespace::New("".to_string(), "".to_string(), userns.clone());
         let ipcns = IPCNamespace::New(&userns);
 
-
-        let tw_size  = core::mem::size_of::<TaskWrapper>();
-        let tw_ptr = unsafe {
-            GLOBAL_ALLOCATOR.AllocSharedBuf(tw_size, 2)
-        };
+        let tw_size = core::mem::size_of::<TaskWrapper>();
+        let tw_ptr = unsafe { GLOBAL_ALLOCATOR.AllocSharedBuf(tw_size, 2) };
 
         let t_wp = TaskWrapper::New(s_ptr as u64);
         let t_wp_ptr = tw_ptr as *mut TaskWrapper;
         unsafe {
-            ptr::write(
-                t_wp_ptr,
-                t_wp
-            );
+            ptr::write(t_wp_ptr, t_wp);
         }
 
         let blocker = Blocker::New(TaskId::New(s_ptr as u64, tw_ptr as u64));
@@ -796,20 +792,14 @@ impl Task {
         let baseStackAddr = Self::PrivateTaskID();
         let taskPtr = baseStackAddr as *mut Task;
 
-        let tw_size  = core::mem::size_of::<TaskWrapper>();
-        let tw_ptr = unsafe {
-            GLOBAL_ALLOCATOR.AllocSharedBuf(tw_size, 2)
-        };
+        let tw_size = core::mem::size_of::<TaskWrapper>();
+        let tw_ptr = unsafe { GLOBAL_ALLOCATOR.AllocSharedBuf(tw_size, 2) };
 
         let t_wp = TaskWrapper::New(taskPtr as u64);
         let t_wp_ptr = tw_ptr as *mut TaskWrapper;
         unsafe {
-            ptr::write(
-                t_wp_ptr,
-                t_wp
-            );
+            ptr::write(t_wp_ptr, t_wp);
         }
-
 
         let blocker = Blocker::New(TaskId::New(baseStackAddr, tw_ptr as u64));
 
@@ -852,6 +842,7 @@ impl Task {
         }
     }
 
+    #[cfg(not(feature = "cc"))]
     #[inline]
     pub fn SwitchPageTable(&self) {
         let root = self.mm.GetRoot();
@@ -864,7 +855,23 @@ impl Task {
         }
     }
 
-    #[cfg(target_arch="x86_64")]
+    #[cfg(feature = "cc")]
+    #[inline]
+    pub fn SwitchPageTable(&self) {
+        let mut root = self.mm.GetRoot();
+        let curr = super::asm::CurrentUserTable();
+        if snp_active() {
+            root |= C_BIT_MASK.load(Ordering::Acquire);
+        }
+        if curr != root {
+            CPULocal::Myself()
+                .tlbEpoch
+                .store(self.mm.TLBEpoch(), Ordering::Relaxed);
+            super::super::pagetable::PageTables::Switch(root);
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
     pub fn SetKernelPageTable() {
         KERNEL_PAGETABLE.SwitchTo();
     }

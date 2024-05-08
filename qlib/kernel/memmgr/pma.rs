@@ -16,20 +16,24 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
 
-use super::super::super::pagetable::PageTableFlags;
-use super::super::super::pagetable::PageTable;
-use super::super::super::pagetable::PhysAddr;
-use super::super::super::pagetable::VirtAddr;
 use super::super::super::addr::*;
 use super::super::super::common::*;
 use super::super::super::linux_def::*;
 use super::super::super::mem::block_allocator::*;
 use super::super::super::object_ref::*;
+use super::super::super::pagetable::PageTable;
+use super::super::super::pagetable::PageTableFlags;
+use super::super::super::pagetable::PhysAddr;
+use super::super::super::pagetable::VirtAddr;
 use super::super::super::pagetable::*;
 use super::super::super::range::*;
 use super::super::task::*;
 use super::super::PAGE_MGR;
+#[cfg(feature = "cc")]
+use crate::qlib::kernel::Kernel::ENABLE_CC;
 use crate::IS_GUEST;
+#[cfg(feature = "cc")]
+use core::sync::atomic::Ordering;
 
 use crate::kernel_def::Invlpg;
 //use crate::qlib::kernel::memmgr::pmamgr::PagePool;
@@ -169,6 +173,13 @@ impl PageTables {
     }
 
     pub fn InitVsyscall(&self, phyAddrs: Arc<Vec<u64>> /*4 pages*/) {
+        #[cfg(feature = "cc")]
+        if ENABLE_CC.load(Ordering::Acquire) {
+            match self.InitVsyscall_cc(phyAddrs.clone()) {
+                Err(Error::InvalidInput) => (),
+                _ => return,
+            }
+        }
         let vaddr = 0xffffffffff600000;
         let pt: *mut PageTable = self.GetRoot() as *mut PageTable;
         unsafe {
@@ -223,6 +234,10 @@ impl PageTables {
     // 2: p3 page for 0GB to 512G
 
     pub fn NewWithKernelPageTables(&self, pagePool: &PageMgr) -> Result<Self> {
+        #[cfg(feature = "cc")]
+        if ENABLE_CC.load(Ordering::Acquire) {
+            return self.NewWithKernelPageTables_cc(pagePool);
+        }
         let ret = Self::New(pagePool)?;
 
         unsafe {
@@ -246,7 +261,10 @@ impl PageTables {
             #[cfg(target_arch = "aarch64")]
             nPgdEntry.set_addr(
                 PhysAddr::new(nPudTbl as u64),
-                PageTableFlags::VALID | PageTableFlags::TABLE | PageTableFlags::ACCESSED | PageTableFlags::USER_ACCESSIBLE,
+                PageTableFlags::VALID
+                    | PageTableFlags::TABLE
+                    | PageTableFlags::ACCESSED
+                    | PageTableFlags::USER_ACCESSIBLE,
             );
             for i in MemoryDef::KERNEL_START_P2_ENTRY..MemoryDef::KERNEL_END_P2_ENTRY {
                 //memspace between 256GB to 512GB

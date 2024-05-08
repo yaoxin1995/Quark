@@ -65,8 +65,6 @@ impl HostAllocator {
             panic!("mmap: failed to get mapped memory area for heap");
         }
 
-
-
         // guest && host shared heap + guest private heap
         let host_init_heap_addr = unsafe {
             let mut flags = libc::MAP_SHARED | libc::MAP_ANON | libc::MAP_FIXED;
@@ -87,6 +85,53 @@ impl HostAllocator {
             panic!("mmap: failed to get mapped memory area for heap");
         }
 
+        #[cfg(feature = "cc")]
+        {
+            let host_init_cpuid_addr = unsafe {
+                let flags = libc::MAP_SHARED | libc::MAP_ANON | libc::MAP_FIXED;
+                libc::mmap(
+                    MemoryDef::CPUID_PAGE as _,
+                    MemoryDef::PAGE_SIZE as usize,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    flags,
+                    -1,
+                    0,
+                ) as u64
+            };
+            if host_init_cpuid_addr == libc::MAP_FAILED as u64 {
+                panic!("mmap: failed to get mapped memory area for cpuid page");
+            }
+
+            let host_init_secret_addr = unsafe {
+                let flags = libc::MAP_SHARED | libc::MAP_ANON | libc::MAP_FIXED;
+                libc::mmap(
+                    MemoryDef::SECRET_PAGE as _,
+                    MemoryDef::PAGE_SIZE as usize,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    flags,
+                    -1,
+                    0,
+                ) as u64
+            };
+            if host_init_secret_addr == libc::MAP_FAILED as u64 {
+                panic!("mmap: failed to get mapped memory area for cpuid page");
+            }
+
+            let host_init_ghcb_addr = unsafe {
+                let flags = libc::MAP_SHARED | libc::MAP_ANON | libc::MAP_FIXED;
+                libc::mmap(
+                    MemoryDef::GHCB_OFFSET as _,
+                    MemoryDef::PAGE_SIZE_2M as usize,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    flags,
+                    -1,
+                    0,
+                ) as u64
+            };
+            if host_init_ghcb_addr == libc::MAP_FAILED as u64 {
+                panic!("mmap: failed to get mapped memory area for ghcb page");
+            }
+        }
 
         assert!(
             self.guest_private_heap.load(Ordering::Relaxed) == guest_private_heap_addr,
@@ -107,6 +152,7 @@ impl HostAllocator {
         let guestPrivateHeapEnd = guestPrivateHeapStart + MemoryDef::guest_private_init_heap_size() as u64;
         *self.GuestPrivateAllocator() = ListAllocator::New(guestPrivateHeapStart as _, guestPrivateHeapEnd);
 
+
         let hostInitHeapStart = self.host_initialization_heap.load(Ordering::Relaxed);
         let hostInitHeapEnd = hostInitHeapStart + MemoryDef::HOST_INIT_HEAP_SIZE as u64;
         *self.HostInitAllocator() = ListAllocator::New(hostInitHeapStart as _, hostInitHeapEnd);
@@ -118,10 +164,10 @@ impl HostAllocator {
                         MemoryDef::guest_private_init_heap_size() as usize - size);
         self.HostInitAllocator().Add(MemoryDef::HOST_INIT_HEAP_OFFSET as usize + size, 
                                             MemoryDef::HOST_INIT_HEAP_SIZE as usize - size);
+
         self.initialized.store(true, Ordering::SeqCst);
 
         self.is_vm_lauched.store(false, Ordering::SeqCst);
-
     }
 
     pub fn Clear(&self) -> bool {
@@ -129,7 +175,6 @@ impl HostAllocator {
         return false;
     }
 }
-
 
 #[cfg(feature = "cc")]
 unsafe impl GlobalAlloc for HostAllocator {
@@ -153,7 +198,7 @@ unsafe impl GlobalAlloc for HostAllocator {
         let is_vm_init = self.is_vm_lauched.load(Ordering::SeqCst);
         if !is_vm_init && Self::IsGuestPrivateHeapAddr(addr) {
             self.GuestPrivateAllocator().dealloc(ptr, layout);
-            return
+            return;
         }
 
         if Self::IsHostGuestSharedHeapAddr(addr) {
@@ -177,11 +222,8 @@ unsafe impl GlobalAlloc for HostAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         self.GuestPrivateAllocator().dealloc(ptr, layout);
-        
     }
 }
-
-
 
 impl OOMHandler for ListAllocator {
     fn handleError(&self, _a: u64, _b: u64) {
@@ -200,4 +242,3 @@ impl ListAllocator {
 impl VcpuAllocator {
     pub fn handleError(&self, _size: u64, _alignment: u64) {}
 }
-

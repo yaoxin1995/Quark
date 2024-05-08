@@ -2984,8 +2984,8 @@ impl MemoryDef {
     pub const PAGE_SIZE_2M_MASK: u64 = !(Self::PAGE_SIZE_2M - 1);
     pub const BLOCK_SIZE: u64 = 64 * Self::ONE_GB;
 
-    const PHY_LOWER_ADDR: u64 = 256 * Self::ONE_GB; // 256 ~ 512GB is Guest kernel space
-    const PHY_UPPER_ADDR: u64 = Self::PHY_LOWER_ADDR + 256 * Self::ONE_GB; // 256 ~ 512GB is Guest kernel space
+    pub const PHY_LOWER_ADDR: u64 = 256 * Self::ONE_GB; // 256 ~ 512GB is Guest kernel space
+    pub const PHY_UPPER_ADDR: u64 = Self::PHY_LOWER_ADDR + 256 * Self::ONE_GB; // 256 ~ 512GB is Guest kernel space
   
     pub const NVIDIA_START_ADDR: u64 = 0x200000000;
     pub const NVIDIA_ADDR_SIZE: u64 = 2 * Self::ONE_GB;
@@ -3001,31 +3001,34 @@ impl MemoryDef {
 
     //==================================================== private ==============================================//
     // RDMA Local share memory
-    const RDMA_LOCAL_SHARE_OFFSET: u64 = Self::PHY_LOWER_ADDR + Self::QKERNEL_IMAGE_SIZE;
-    const RDMA_LOCAL_SHARE_SIZE: u64 = 1024 * Self::ONE_MB; // 1GB
+    pub const RDMA_LOCAL_SHARE_OFFSET: u64 = Self::PHY_LOWER_ADDR + Self::QKERNEL_IMAGE_SIZE;
+    pub const RDMA_LOCAL_SHARE_SIZE: u64 = 1024 * Self::ONE_MB; // 1GB
                                                                 // RDMA global share memory
-    const RDMA_GLOBAL_SHARE_OFFSET: u64 =
+    pub const RDMA_GLOBAL_SHARE_OFFSET: u64 =
         Self::RDMA_LOCAL_SHARE_OFFSET + Self::RDMA_LOCAL_SHARE_SIZE;
-    const RDMA_GLOBAL_SHARE_SIZE: u64 = 512 * Self::ONE_MB;
+    pub const RDMA_GLOBAL_SHARE_SIZE: u64 = 512 * Self::ONE_MB;
 
-    const GUEST_PRIVATE_HEAP_OFFSET: u64 = Self::RDMA_GLOBAL_SHARE_OFFSET + Self::RDMA_GLOBAL_SHARE_SIZE;
-    const GUEST_PRIVATE_HEAP_PLUS_SHARED_HEAP_SIZE: u64 = 10 * Self::ONE_GB;
-    const GUEST_PRIVATE_HEAP_SIZE: u64 = 5 * Self::ONE_GB;
-    const GUEST_PRIVATE_INIT_HEAP_SIZE: u64 = 1 * Self::ONE_GB;
+    pub const GUEST_PRIVATE_HEAP_OFFSET: u64 = Self::RDMA_GLOBAL_SHARE_OFFSET + Self::RDMA_GLOBAL_SHARE_SIZE;
+    pub const GUEST_PRIVATE_HEAP_PLUS_SHARED_HEAP_SIZE: u64 = 10 * Self::ONE_GB;
+    pub const GUEST_PRIVATE_HEAP_SIZE: u64 = 5 * Self::ONE_GB;
+    pub const GUEST_PRIVATE_INIT_HEAP_SIZE: u64 = 1 * Self::ONE_GB;
 
-    const GUEST_PRIVATE_HEAP_END: u64 = Self::GUEST_PRIVATE_HEAP_OFFSET + Self::GUEST_PRIVATE_HEAP_SIZE;
+    pub const GUEST_PRIVATE_HEAP_END: u64 = Self::GUEST_PRIVATE_HEAP_OFFSET + Self::GUEST_PRIVATE_HEAP_SIZE;
 
     //==================================================== shared ==============================================//
     pub const GUEST_HOST_SHARED_HEAP_SIZE: u64 =  MemoryDef::GUEST_PRIVATE_HEAP_PLUS_SHARED_HEAP_SIZE 
                                                             - MemoryDef::GUEST_PRIVATE_HEAP_SIZE;
-    const GUEST_HOST_SHARED_HEAP_OFFEST: u64 =  MemoryDef::GUEST_PRIVATE_HEAP_END;
-    const GUEST_HOST_SHARED_HEAP_END: u64 =  MemoryDef::GUEST_HOST_SHARED_HEAP_OFFEST + MemoryDef::GUEST_HOST_SHARED_HEAP_SIZE;
+    pub const GUEST_HOST_SHARED_HEAP_OFFEST: u64 =  MemoryDef::GUEST_PRIVATE_HEAP_END;
+    pub const GUEST_HOST_SHARED_HEAP_END: u64 =  MemoryDef::GUEST_HOST_SHARED_HEAP_OFFEST + MemoryDef::GUEST_HOST_SHARED_HEAP_SIZE;
 
-    const GHCB_OFFSET: u64 = MemoryDef::GUEST_HOST_SHARED_HEAP_OFFEST + MemoryDef::PAGE_SIZE*2;
-    const HYPERCALL_PARA_PAGE_OFFSET :u64 = MemoryDef::GUEST_HOST_SHARED_HEAP_OFFEST + MemoryDef::PAGE_SIZE*3;
+    // Reuse RDMA area for sev-snp special pages
+    pub const CPUID_PAGE: u64 = Self::PHY_LOWER_ADDR + Self::QKERNEL_IMAGE_SIZE;
+    pub const SECRET_PAGE: u64 = Self::CPUID_PAGE + Self::PAGE_SIZE;
+    pub const GHCB_OFFSET: u64 = Self::SECRET_PAGE + Self::PAGE_SIZE;
+    pub const HYPERCALL_PARA_PAGE_OFFSET :u64 = MemoryDef::GUEST_HOST_SHARED_HEAP_OFFEST + MemoryDef::PAGE_SIZE*3;
 
     // file map area
-    const FILE_MAP_OFFSET: u64 = Self::GUEST_HOST_SHARED_HEAP_OFFEST + Self::GUEST_HOST_SHARED_HEAP_SIZE;
+    pub const FILE_MAP_OFFSET: u64 = Self::GUEST_HOST_SHARED_HEAP_OFFEST + Self::GUEST_HOST_SHARED_HEAP_SIZE;
     pub const FILE_MAP_SIZE: u64 = Self::KERNEL_MEM_INIT_REGION_SIZE * Self::ONE_GB + Self::PHY_LOWER_ADDR - Self::FILE_MAP_OFFSET;
 
     //==================================================== shared end ==============================================//

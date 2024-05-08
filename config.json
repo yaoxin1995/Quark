@@ -6,7 +6,7 @@
   "UringIO"       : true,
   "UringFixedFile": false,
   "EnableAIO"     : true,
-  "PrintException": false,
+  "PrintException": true,
   "KernelPagetable": false,
   "PerfDebug"     : false,
   "UringStatx"    : false,
@@ -27,5 +27,5 @@
   "Sandboxed"     : false,
   "Realtime"      : false,
   "EnableTsot"    : false,
-  "EnableCC"      : false
+  "EnableCC"      : true
 }

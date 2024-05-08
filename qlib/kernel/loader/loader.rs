@@ -195,6 +195,7 @@ pub fn LoadExecutable(
 
         if SliceCompare(&hdr, ELF_MAGIC.as_bytes()) {
             let loaded = LoadElf(task, &file)?;
+            info!("Loaded elf, start:{:x}, end:{:x}, entry:{:x}",loaded.start,loaded.end,loaded.entry);
             return Ok((loaded, executable, argv));
         } else if SliceCompare(&hdr[..2], INTERPRETER_SCRIPT_MAGIC.as_bytes()) {
             info!("start to load script {}", filename);
@@ -296,7 +297,7 @@ pub fn Load(
     task.thread.as_ref().unwrap().lock().name = name.to_string();
 
     let stackRange = CreateStack(task)?;
-
+    info!("Stack start:{:x}, len:{:x}",stackRange.start,stackRange.len);
     let mut stack = Stack::New(stackRange.End());
 
     let usersp = SetupUserStack(

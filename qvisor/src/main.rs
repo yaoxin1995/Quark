@@ -19,6 +19,7 @@
 #![allow(non_camel_case_types)]
 #![allow(deprecated)]
 #![allow(dead_code)]
+#![allow(invalid_reference_casting)]
 #![recursion_limit = "256"]
 #![feature(unix_socket_ancillary_data)]
 #![feature(allocator_api)]
@@ -118,7 +119,7 @@ pub fn AllocatorPrint(_class: usize) -> String {
 }
 
 pub static IS_GUEST: bool = false;
-pub const ENABLE_EMULATION_CC: bool = true;
+pub const ENABLE_EMULATION_CC: bool = false;
 
 pub static SHARE_SPACE: ShareSpaceRef = ShareSpaceRef::New();
 

@@ -12,18 +12,18 @@ use super::qlib::qmsg::qcall::{HostOutputMsg, QMsg};
 use super::qlib::task_mgr::Scheduler;
 use super::qlib::vcpu_mgr::CPULocal;
 use super::qlib::ShareSpace;
+use super::vmspace::VMSpace;
 use super::FD_NOTIFIER;
 use super::VMS;
-use super::vmspace::VMSpace;
-use libc::ioctl;
+use crate::qlib::task_mgr::TaskId;
 use core::slice;
 use core::sync::atomic::AtomicU64;
+use libc::ioctl;
 use nix::sys::signal;
 use spin::Mutex;
+use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{fence, Ordering};
 use std::sync::mpsc::Sender;
-use std::os::unix::io::AsRawFd;
-use crate::qlib::task_mgr::TaskId;
 
 pub struct HostPageAllocator {
     pub allocator: AlignedAllocator,
@@ -114,14 +114,12 @@ impl KVMVcpu {
         vcpuCnt: usize,
         vm_fd: &kvm_ioctls::VmFd,
         entry_gpa: u64,
-        #[cfg(not(feature = "cc"))]
-        pageAllocatorBaseAddr: u64,
-        #[cfg(not(feature = "cc"))]
-        shareSpaceAddr: u64,
+        #[cfg(not(feature = "cc"))] pageAllocatorBaseAddr: u64,
+        #[cfg(not(feature = "cc"))] shareSpaceAddr: u64,
         autoStart: bool,
     ) -> Result<Self> {
         const DEFAULT_STACK_PAGES: u64 = MemoryDef::DEFAULT_STACK_PAGES; //64KB
-        //let stackAddr = pageAlloc.Alloc(DEFAULT_STACK_PAGES)?;
+                                                                         //let stackAddr = pageAlloc.Alloc(DEFAULT_STACK_PAGES)?;
         let stackSize = DEFAULT_STACK_PAGES << 12;
         let stackAddr = AlignedAllocate(stackSize as usize, stackSize as usize, false).unwrap();
         let topStackAddr = stackAddr + (DEFAULT_STACK_PAGES << 12);
@@ -167,7 +165,7 @@ impl KVMVcpu {
         };
 
         cfg_if::cfg_if! {
-            if #[cfg(feature = "cc")] { 
+            if #[cfg(feature = "cc")] {
                 return Ok(Self {
                     id: id,
                     cordId: vcpuCoreId,
@@ -208,7 +206,6 @@ impl KVMVcpu {
                 });
             }
         }
-
     }
 
     pub fn GuestMsgProcess(sharespace: &ShareSpace) -> usize {
@@ -242,7 +239,7 @@ impl KVMVcpu {
                 }
                 Some(msg) => {
                     count += 1;
- 
+
                     AQHostCall(msg, sharespace);
                 }
             }
@@ -333,7 +330,6 @@ pub fn AlignedAllocate(size: usize, align: usize, zeroData: bool) -> Result<u64>
         Ok(addr as u64)
     }
 }
-
 
 // SetVmExitSigAction set SIGCHLD as the vm exit signal,
 // the signal handler will set_kvm_immediate_exit to 1,
@@ -460,7 +456,6 @@ impl CPULocal {
         self.data = 1;
     }
 
-
     pub fn Process(&self, sharespace: &ShareSpace) -> Option<TaskId> {
         match sharespace.scheduler.GetNext() {
             None => (),
@@ -507,7 +502,7 @@ impl CPULocal {
             super::GLOBAL_ALLOCATOR.Clear();
             //debug!("epoll_wait epollfd:{:x},time:{:x}",self.epollfd,time);
             let _nfds = unsafe { libc::epoll_wait(self.epollfd, &mut events[0], 2, time) };
-           
+
             {
                 let mut data: u64 = 0;
                 let ret = unsafe {

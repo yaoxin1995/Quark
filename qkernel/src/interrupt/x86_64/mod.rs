@@ -28,6 +28,14 @@ use super::super::threadmgr::task_sched::*;
 use super::super::MainRun;
 use super::super::SignalDef::*;
 use super::super::SHARESPACE;
+cfg_cc! {
+use super::super::qlib::cc::sev_snp::{VCResult,SVMExitDef,snp_active,C_BIT_MASK};
+use super::super::qlib::cc::sev_snp::ghcb::*;
+use alloc::slice;
+use super::super::qlib::cc::sev_snp::vc::*;
+use yaxpeax_arch::LengthedInstruction;
+use core::sync::atomic::Ordering;
+    }
 
 #[derive(Clone, Copy, Debug, core::cmp::PartialEq)]
 pub enum ExceptionStackVec {
@@ -56,7 +64,7 @@ pub enum ExceptionStackVec {
     NrInterrupts,
 }
 
-#[cfg(target_arch="x86_64")]
+#[cfg(target_arch = "x86_64")]
 pub fn test_breakpoint_exception() {
     // invoke a breakpoint exception
     x86_64::instructions::interrupts::int3();
@@ -83,6 +91,7 @@ extern "C" {
     pub fn simd_fp_handler();
     pub fn virtualization_handler();
     pub fn security_handler();
+    pub fn vmm_communication_handler();
 }
 
 pub static IDT: Singleton<idt::Idt> = Singleton::<idt::Idt>::New();
@@ -126,7 +135,8 @@ pub unsafe fn InitSingleton() {
     idt.set_handler(19, simd_fp_handler).set_stack_index(0);
     idt.set_handler(20, virtualization_handler)
         .set_stack_index(0);
-
+    idt.set_handler(29, vmm_communication_handler)
+        .set_stack_index(0);
     idt.set_handler(30, security_handler).set_stack_index(0);
 
     IDT.Init(idt);
@@ -139,7 +149,26 @@ pub fn init() {
 pub fn ExceptionHandler(ev: ExceptionStackVec, ptRegs: &mut PtRegs, errorCode: u64) {
     CPULocal::Myself().SetMode(VcpuMode::Kernel);
     let PRINT_EXECPTION: bool = SHARESPACE.config.read().PrintException;
+    let mut cr4_value: u64;
+    unsafe {
+        asm!(
+            "mov {0}, cr4",
+            out(reg) cr4_value
+        )
+    };
 
+    info!("CR4 register value: {:x}", cr4_value);
+    let mut mxcsr_value: u64 = 0;
+    let mut mxcsr_addr = &mxcsr_value as *const _ as u64;
+    unsafe {
+        asm!(
+            "mov rax,{0}",
+            "stmxcsr [rax]",
+            inout(reg) mxcsr_addr
+        )
+    };
+    info!("mxcsr register value: {:x}", mxcsr_value);
+    info!("rip: 0x{:x}", ptRegs.rip);
     let currTask = Task::Current();
     //currTask.mm.VcpuLeave();
     let mut rflags = ptRegs.eflags;
@@ -425,10 +454,19 @@ bitflags! {
 
 #[no_mangle]
 pub extern "C" fn PageFaultHandler(ptRegs: &mut PtRegs, errorCode: u64) {
+    #[cfg(feature = "cc")]
+    let mut cr2: u64;
+    #[cfg(not(feature = "cc"))]
     let cr2: u64;
     unsafe { asm!("mov {0}, cr2", out(reg) cr2 ) };
     let cr3: u64;
     unsafe { asm!("mov {0}, cr3", out(reg) cr3 ) };
+
+    #[cfg(feature = "cc")]
+    if snp_active() {
+        let c_bit_mask = C_BIT_MASK.load(Ordering::Relaxed);
+        cr2 &= !c_bit_mask;
+    }
 
     CPULocal::Myself().SetMode(VcpuMode::Kernel);
     let currTask = Task::Current();
@@ -602,7 +640,7 @@ pub extern "C" fn PageFaultHandler(ptRegs: &mut PtRegs, errorCode: u64) {
                 signal = Signal::SIGSEGV;
                 break;
             }
-
+            info!("PageFaultHandler CopyOnWriteLocked");
             currTask.mm.CopyOnWriteLocked(pageAddr, &vma);
             currTask.mm.TlbShootdown();
             if fromUser {
@@ -773,3 +811,88 @@ pub extern "C" fn TripleFaultHandler(sf: &mut PtRegs) {
     info!("\nTripleFaultHandler: at {:#x}\n{:#?}", sf.rip, sf);
     loop {}
 }
+
+#[cfg(feature = "cc")]
+#[no_mangle]
+pub extern "C" fn VmmCommunicationHandler(sf: &mut PtRegs, errorCode: u64) {
+    use crate::Kernel_cc::LOG_AVAILABLE;
+
+    let mut res = VCResult::EsDecodeFailed;
+    let code_ptr = sf.rip;
+    let code_slice;
+    unsafe {
+        code_slice = slice::from_raw_parts_mut(code_ptr as *mut u8, 15);
+    }
+
+    let mut ins_length = 0;
+    let decoder = yaxpeax_x86::amd64::InstDecoder::default();
+    match decoder.decode_slice(code_slice) {
+        Ok(i) => {
+            match errorCode {
+                SVMExitDef::SVM_EXIT_CPUID => res = vc_handle_cpuid(sf),
+                SVMExitDef::SVM_EXIT_INVD => res = VCResult::EsUnsupported,
+                SVMExitDef::SVM_EXIT_MONITOR => res = VCResult::EsOk,
+                SVMExitDef::SVM_EXIT_MWAIT => res = VCResult::EsOk,
+                //mmio not supported yet
+                SVMExitDef::SVM_EXIT_NPF => res = VCResult::EsUnsupported,
+                _ => {
+                    let mut vcpuid = 0;
+                    if LOG_AVAILABLE.load(core::sync::atomic::Ordering::Acquire) {
+                        vcpuid = crate::qlib::kernel::asm::GetVcpuId();
+                    }
+                    let ghcb_option: &mut Option<GhcbHandle<'_>> = &mut *GHCB[vcpuid].lock();
+                    let ghcb = ghcb_option.as_mut().unwrap();
+                    ghcb.invalidate();
+                    res = vc_handle_exitcode_ghcb(&i, ghcb, errorCode, sf);
+                }
+            }
+            ins_length = i.len().to_const();
+        }
+        Err(_) => (),
+    }
+
+    const UD: u64 = 6;
+    const GP: u64 = 13;
+    const AC: u64 = 17;
+    match res {
+        VCResult::EsOk => {
+            sf.rip += ins_length as u64;
+        }
+        VCResult::EsUnsupported => {
+            panic!(
+                "Unsupported exit-code 0x{:x} in #VC exception (IP: 0x{:x})",
+                errorCode, sf.rip
+            )
+        }
+        VCResult::EsVmmError => {
+            panic!(
+                "Failure in communication with VMM (exit-code 0x{:x} IP: 0x{:x})",
+                errorCode, sf.rip
+            )
+        }
+        VCResult::EsDecodeFailed => {
+            panic!(
+                "Failed to decode instruction (exit-code 0x{:x} IP: 0x{:x})",
+                errorCode, sf.rip
+            )
+        }
+        VCResult::EsException(e) => {
+            info!("Get VCResult::EsException({})", e);
+            match e {
+                UD => ExceptionHandler(ExceptionStackVec::InvalidOpcode, sf, 0),
+                GP => ExceptionHandler(ExceptionStackVec::GeneralProtectionFault, sf, errorCode),
+                AC => ExceptionHandler(ExceptionStackVec::AlignmentCheck, sf, errorCode),
+                e => panic!(
+                    "Failed to decode EsException (exit-code 0x{:x} IP: 0x{:x} Exception 0x{:x})",
+                    errorCode, sf.rip, e
+                ),
+            }
+        }
+        VCResult::EsRetry => (),
+    }
+    return;
+}
+
+#[cfg(not(feature = "cc"))]
+#[no_mangle]
+pub extern "C" fn VmmCommunicationHandler(_sf: &mut PtRegs, _errorCode: u64) {}

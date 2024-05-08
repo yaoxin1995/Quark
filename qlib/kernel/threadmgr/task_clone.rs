@@ -667,7 +667,7 @@ impl Task {
 pub fn CreateCloneTask(fromTask: &Task, toTask: &mut Task, userSp: u64) {
     let mut from = fromTask.GetKernelSp();
     let fromSp = fromTask.GetPtRegs() as *const _ as u64;
-
+    info!("CreateCloneTask fromSp:{:#x?}",fromTask.GetPtRegs());
     let mut to = toTask.GetKernelSp();
     let toPtRegs = toTask.GetPtRegs();
 
