@@ -1180,7 +1180,11 @@ impl PageTables {
 
             pagePool.Ref(phyAddr.0).unwrap();
             if !pteEntry.is_unused() {
-                self.freeEntry(pteEntry, pagePool)?;
+                info!(
+                    "Free entry for used page snp vaddr:{:x},phyaddr:{:x}, is shared:{}",
+                    vaddr.0, phyAddr.0, is_shared_page
+                );
+                self.freeEntry_snp(pteEntry, pagePool)?;
 
                 /*let addr = pteEntry.addr().as_u64();
                 let bit9 = pteEntry.flags() & PageTableFlags::BIT_9 == PageTableFlags::BIT_9;
