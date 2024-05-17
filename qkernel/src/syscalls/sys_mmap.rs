@@ -149,7 +149,7 @@ pub fn SysMprotect(task: &mut Task, args: &SyscallArguments) -> Result<i64> {
 pub fn SysUnmap(task: &mut Task, args: &SyscallArguments) -> Result<i64> {
     let addr = args.arg0 as u64;
     let len = args.arg1 as u64;
-
+    info!("get call sysunmap!!!");
     match task.mm.MUnmap(task, addr, len) {
         Err(e) => return Err(e),
         _ => return Ok(0),

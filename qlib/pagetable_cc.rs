@@ -1125,10 +1125,6 @@ impl PageTables {
         let mut res = false;
         let c_bit_mask = C_BIT_MASK.load(Ordering::Relaxed);
         let is_shared_page = HostAllocator::IsHostGuestSharedHeapAddr(phyAddr.0);
-        info!(
-            "Map page snp vaddr:{:x},phyaddr:{:x}, is shared:{}",
-            vaddr.0, phyAddr.0, is_shared_page
-        );
         let vaddr = Addr(vaddr.0 & !(PAGE_SIZE - 1));
         let pt: *mut PageTable = self.GetRoot() as *mut PageTable;
         unsafe {

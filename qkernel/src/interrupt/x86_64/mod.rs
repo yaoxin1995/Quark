@@ -149,26 +149,6 @@ pub fn init() {
 pub fn ExceptionHandler(ev: ExceptionStackVec, ptRegs: &mut PtRegs, errorCode: u64) {
     CPULocal::Myself().SetMode(VcpuMode::Kernel);
     let PRINT_EXECPTION: bool = SHARESPACE.config.read().PrintException;
-    let mut cr4_value: u64;
-    unsafe {
-        asm!(
-            "mov {0}, cr4",
-            out(reg) cr4_value
-        )
-    };
-
-    info!("CR4 register value: {:x}", cr4_value);
-    let mut mxcsr_value: u64 = 0;
-    let mut mxcsr_addr = &mxcsr_value as *const _ as u64;
-    unsafe {
-        asm!(
-            "mov rax,{0}",
-            "stmxcsr [rax]",
-            inout(reg) mxcsr_addr
-        )
-    };
-    info!("mxcsr register value: {:x}", mxcsr_value);
-    info!("rip: 0x{:x}", ptRegs.rip);
     let currTask = Task::Current();
     //currTask.mm.VcpuLeave();
     let mut rflags = ptRegs.eflags;
@@ -816,7 +796,25 @@ pub extern "C" fn TripleFaultHandler(sf: &mut PtRegs) {
 #[no_mangle]
 pub extern "C" fn VmmCommunicationHandler(sf: &mut PtRegs, errorCode: u64) {
     use crate::Kernel_cc::LOG_AVAILABLE;
+    let log_available = LOG_AVAILABLE.load(core::sync::atomic::Ordering::Acquire);
+    let from_user = sf.cs & 0x3 != 0;
+    if from_user {
+        CPULocal::Myself().SetMode(VcpuMode::Kernel);
+        let currTask = Task::Current();
+        let mut rflags = sf.eflags;
+        rflags &= !USER_FLAGS_CLEAR;
+        rflags |= USER_FLAGS_SET;
+        sf.eflags = rflags;
+        sf.ss |= 3;
+        currTask.SaveFp();
+    }
 
+    if log_available && errorCode != SVMExitDef::SVM_EXIT_IOIO {
+        info!(
+            "Enter VC Handler errorCode:{}, PtRegs:{:#x?}",
+            errorCode, sf
+        );
+    }
     let mut res = VCResult::EsDecodeFailed;
     let code_ptr = sf.rip;
     let code_slice;
@@ -837,7 +835,7 @@ pub extern "C" fn VmmCommunicationHandler(sf: &mut PtRegs, errorCode: u64) {
                 SVMExitDef::SVM_EXIT_NPF => res = VCResult::EsUnsupported,
                 _ => {
                     let mut vcpuid = 0;
-                    if LOG_AVAILABLE.load(core::sync::atomic::Ordering::Acquire) {
+                    if log_available {
                         vcpuid = crate::qlib::kernel::asm::GetVcpuId();
                     }
                     let ghcb_option: &mut Option<GhcbHandle<'_>> = &mut *GHCB[vcpuid].lock();
@@ -856,6 +854,14 @@ pub extern "C" fn VmmCommunicationHandler(sf: &mut PtRegs, errorCode: u64) {
     const AC: u64 = 17;
     match res {
         VCResult::EsOk => {
+            if errorCode == SVMExitDef::SVM_EXIT_CPUID
+                && LOG_AVAILABLE.load(core::sync::atomic::Ordering::Acquire)
+            {
+                info!(
+                    "VC Handler cpuid output:rax:{:x},rbx:{:x},rcx:{:x},rdx:{:x}",
+                    sf.rax, sf.rbx, sf.rcx, sf.rdx
+                );
+            }
             sf.rip += ins_length as u64;
         }
         VCResult::EsUnsupported => {
@@ -889,6 +895,10 @@ pub extern "C" fn VmmCommunicationHandler(sf: &mut PtRegs, errorCode: u64) {
             }
         }
         VCResult::EsRetry => (),
+    }
+    if from_user {
+        let currTask = Task::Current();
+        currTask.RestoreFp();
     }
     return;
 }

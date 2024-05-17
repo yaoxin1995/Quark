@@ -4,6 +4,7 @@ use core::arch::x86_64::CpuidResult;
 use core::mem::size_of;
 
 pub const SNP_CPUID_FUNCTION_MAXCOUNT: usize = 64;
+#[repr(packed)]
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct SnpCpuidFunc {
@@ -18,6 +19,7 @@ pub struct SnpCpuidFunc {
     pub reserved: u64,
 }
 
+#[repr(packed)]
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct SnpCpuidInfo {
@@ -37,7 +39,9 @@ impl Default for SnpCpuidInfo {
         };
     }
 }
+
 #[repr(C)]
+#[repr(packed)]
 #[derive(Copy, Clone, Debug)]
 pub struct CpuidPage {
     entry: SnpCpuidInfo,

@@ -582,7 +582,9 @@ cfg_if::cfg_if! {
                 GlobalIOMgr().InitPollHostEpoll(SHARESPACE.HostHostEpollfd());
 
                 VDSO.Initialization(vdsoParamAddr);
-
+                use crate::qlib::cc::sev_snp::cpuid_page::*;
+                let cpuid_page = CpuidPage::from(MemoryDef::CPUID_PAGE);
+                cpuid_page.dump_cpuid();
                 // release other vcpus
                 HyperCall64(qlib::HYPERCALL_RELEASE_VCPU, 0, 0, 0, 0);
             } else {
@@ -599,7 +601,6 @@ cfg_if::cfg_if! {
             let mxcsr_value = 0x1f80;
             ldmxcsr(&mxcsr_value as *const _ as u64);
             /***************** can't run any qcall before this point ************************************/
-
             if id == 0 {
                 //error!("start main: {}", ::AllocatorPrint(10));
 

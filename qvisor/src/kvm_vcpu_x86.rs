@@ -972,8 +972,8 @@ impl KVMVcpu {
             } else {
                 let regs: kvm_regs = kvm_regs {
                     rflags: KERNEL_FLAGS_SET,
-                    rip: self.entry,
-                    rsp: self.topStackAddr,
+                    rip: self.entry_gpa,
+                    rsp: self.topStackAddrGpa,
                     rax: 0x11,
                     rbx: 0xdd,
                     //arg0
@@ -983,7 +983,7 @@ impl KVMVcpu {
                     //arg2
                     rdx: self.id as u64,
                     //arg3
-                    rcx: VMS.read().vdsoAddr,
+                    rcx: VMS.read().vdsoAddrGpa,
                     //arg4
                     r8: self.vcpuCnt as u64,
                     //arg5

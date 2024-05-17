@@ -1,4 +1,3 @@
-use crate::qlib::cpuid::HostID;
 use alloc::sync::Arc;
 use kvm_bindings::*;
 use kvm_ioctls::{Cap, Kvm, VmFd};
@@ -9,8 +8,6 @@ use std::os::unix::io::FromRawFd;
 
 use super::super::super::elf_loader::*;
 use super::super::super::kvm_vcpu::*;
-#[cfg(target_arch = "aarch64")]
-use super::super::super::kvm_vcpu_aarch64::KVMVcpuInit;
 use super::super::super::print::LOG;
 use super::super::super::qlib::addr;
 use super::super::super::qlib::cc::sev_snp::cpuid_page::*;
@@ -35,6 +32,7 @@ pub const KVM_MEMORY_ATTRIBUTE_PRIVATE: u64 = 1 << 3;
 impl CpuidPage {
     pub fn FillCpuidPage(&mut self, kvm_cpuid_entries: &CpuId) -> Result<()> {
         let mut has_entries = false;
+        const OSXSAVE: u32 = 1 << 27;
 
         for kvm_entry in kvm_cpuid_entries.as_slice() {
             if kvm_entry.function == 0 && kvm_entry.index == 0 && has_entries {
@@ -47,9 +45,9 @@ impl CpuidPage {
 
             // range check, see:
             // SEV Secure Nested Paging Firmware ABI Specification
-            // 8.14.2.6 PAGE_TYPE_CPUID
-            if !((0..0xFFFF).contains(&kvm_entry.function)
-                || (0x8000_0000..0x8000_FFFF).contains(&kvm_entry.function))
+            // 8.17.2.6 PAGE_TYPE_CPUID
+            if !((0x0000_0000..=0x0000_FFFF).contains(&kvm_entry.function)
+                || (0x8000_0000..=0x8000_FFFF).contains(&kvm_entry.function))
             {
                 continue;
             }
@@ -85,21 +83,15 @@ impl CpuidPage {
                 snp_cpuid_entry.xcr0_in = 1;
                 snp_cpuid_entry.xss_in = 0;
             }
+
+            //if snp_cpuid_entry.eax_in == 0x1{
+            //    snp_cpuid_entry.ecx |= OSXSAVE;
+            //}
             self.AddEntry(&snp_cpuid_entry)
                 .expect("Failed to add CPUID entry to the CPUID page");
         }
         Ok(())
     }
-}
-//for assumption
-pub fn get_page_from_allocator(_len: usize) -> *mut u64 {
-    todo!()
-}
-
-//get c_bit position
-pub fn get_c_bit() -> u64 {
-    let (_, ebx, _, _) = HostID(0x8000001f, 0);
-    return (ebx & 0x3f) as u64;
 }
 
 impl VirtualMachine {
@@ -181,8 +173,7 @@ impl VirtualMachine {
             }
         }
 
-        //let cpuCount = cpuCount.max(2); // minimal 2 cpus
-        let cpuCount = 4; // minimal 2 cpus
+        let cpuCount = cpuCount.max(2); // minimal 2 cpus
         VMS.write().vcpuCount = cpuCount; //VMSpace::VCPUCount();
         VMS.write().RandomVcpuMapping();
         let kernelMemRegionSize = QUARK_CONFIG.lock().KernelMemSize;
@@ -272,7 +263,7 @@ impl VirtualMachine {
         cpuid_page
             .FillCpuidPage(&kvm_cpuid)
             .expect("Fail to fill cpuid page");
-        //cpuid_page.dump_cpuid();
+        cpuid_page.dump_cpuid();
         let entry = elf.LoadKernel(Self::KERNEL_IMAGE)?;
         //let vdsoMap = VDSOMemMap::Init(&"/home/brad/rust/quark/vdso/vdso.so".to_string()).unwrap();
         elf.LoadVDSO(&"/usr/local/bin/vdso.so".to_string())?;
@@ -356,7 +347,7 @@ impl VirtualMachine {
         match launcher.update_data(update_cpuid) {
             Ok(_) => (),
             Err(_) => {
-                //cpuid_page.dump_cpuid();
+                cpuid_page.dump_cpuid();
                 launcher.update_data(update_cpuid).unwrap();
             }
         };
