@@ -28,6 +28,7 @@
 #![recursion_limit = "256"]
 #![allow(invalid_reference_casting)]
 #![feature(btreemap_alloc)]
+#![feature(strict_provenance)]
 
 #[macro_use]
 extern crate alloc;
@@ -53,6 +54,12 @@ extern crate xmas_elf;
 extern crate yaxpeax_arch;
 #[cfg(feature = "cc")]
 extern crate yaxpeax_x86;
+#[cfg(feature = "cc")]
+extern crate aes_gcm;
+#[cfg(feature = "cc")]
+extern crate sha2;
+#[cfg(feature = "cc")]
+extern crate base64ct;
 
 use core::panic::PanicInfo;
 use core::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
@@ -565,7 +572,7 @@ cfg_if::cfg_if! {
                 SHARESPACE.SetValue(shared_space as u64);
                 SingletonInit();
                 LOG_AVAILABLE.store(true, Ordering::Release);
-                info!("HYPERCALL_SHARESPACE_INIT finished");
+                info!("HYPERCALL_SHARESPACE_INIT finished 1111111");
                 SetVCPCount(vcpuCnt as usize);
                 VCPU_ALLOCATOR.Print();
                 VCPU_ALLOCATOR.Initializated();
@@ -733,11 +740,9 @@ fn StartSubContainerProcess(elfEntry: u64, userStackAddr: u64, kernelStackAddr: 
 }
 
 fn ControllerProcess(_para: *const u8) {
-    info!("ControllerProcess 1");
     if SHARESPACE.config.read().Sandboxed {
         self::InitLoader();
     }
-    info!("ControllerProcess 2");
     ControllerProcessHandler().expect("ControllerProcess crash");
 }
 

@@ -203,14 +203,18 @@ pub unsafe fn early_panic(reason: u64, value: u64) {
 }
 
 pub fn ghcb_msr_make_page_shared(page_virt: VirtAddr) {
+
+    // let log_available = LOG_AVAILABLE.load(core::sync::atomic::Ordering::Acquire);
+
     let pt = &KERNEL_PAGETABLE;
-    // const SNP_PAGE_STATE_PRIVATE: u64 = 1;
     const SNP_PAGE_STATE_SHARED: u64 = 2;
+
     // Since the initial kernel pt is set up in 1gb page frame,
     // it should be smash twice to 4kb page frame to initial ghcb
     pt.smash(page_virt, &*PAGE_MGR, true).unwrap();
     pt.smash(page_virt, &*PAGE_MGR, false).unwrap();
     pvalidate(page_virt, PvalidateSize::Size4K, false).unwrap();
+
 
     if pt
         .clear_c_bit_address_range(page_virt, page_virt + Page::<Size4KiB>::SIZE, &*PAGE_MGR)
@@ -226,7 +230,6 @@ pub fn ghcb_msr_make_page_shared(page_virt: VirtAddr) {
     const SHARED_BIT: u64 = SNP_PAGE_STATE_SHARED << GhcbMsr::PSC_OP_POS;
 
     let val = gpa.as_u64() | SHARED_BIT;
-
     unsafe {
         let ret = vmgexit_msr(GhcbMsr::PSC_REQ, val, GhcbMsr::PSC_RESP);
 
@@ -269,6 +272,40 @@ impl<'a> GhcbHandle<'a> {
             }
         }
         *self.ghcb = Ghcb::default();
+    }
+
+    /// GHCB GUEST_REQUEST
+    ///
+    /// # Safety
+    /// undefined behaviour, if the parameters don't follow the GHCB protocol
+    pub unsafe fn guest_req(&mut self, req_gpa: PhysAddr, resp_gpa: PhysAddr) -> Result<(), u64> {
+        const SVM_VMGEXIT_GUEST_REQUEST: u64 = 0x80000011;
+        
+        self.invalidate();
+
+        let res = self.vmgexit(
+            SVM_VMGEXIT_GUEST_REQUEST,
+            req_gpa.as_u64(),
+            resp_gpa.as_u64(),
+        ).map_err(|a| 
+            match a {
+                GhcbError::VmmError => u64::MAX,
+                GhcbError::Exception(num) => num
+            });
+
+        if res.is_err() {
+            unsafe {
+                early_panic(4, 0x35);
+            }
+        }
+        if self.ghcb.save_area.sw_exit_info2 != 0 {
+            // unsafe {
+            //     early_panic(4, 0x35);
+            // }
+            Err(self.ghcb.save_area.sw_exit_info2)
+        } else {
+            Ok(())
+        }
     }
 
     /// do a vmgexit with the ghcb block
@@ -439,6 +476,117 @@ impl<'a> GhcbHandle<'a> {
         }
     }
 
+    pub fn set_memory_shared_4kb(&mut self, virt_addr: VirtAddr, npages: u64) {
+        let mut time = 0u64;
+        let mut npages_current = npages;
+        assert!(npages >= 1);
+        let pt = &KERNEL_PAGETABLE;
+        (virt_addr.as_u64()
+        ..(virt_addr + MemoryDef::PAGE_SIZE_4K.checked_mul(npages as u64).unwrap()).as_u64())
+        .step_by(MemoryDef::PAGE_SIZE_4K as usize)
+        .for_each(|a| {
+            let virt = VirtAddr::new(a);
+            match pt.smash(virt, &*PAGE_MGR, true) {
+                Ok(_) => (),
+                Err(_) => unsafe { early_panic(0x4, 0x14) },
+            };
+
+            pvalidate(virt, PvalidateSize::Size4K, false).unwrap();
+        });
+
+        match pt.clear_c_bit_address_range(
+            virt_addr,
+            virt_addr + MemoryDef::PAGE_SIZE_4K.checked_mul(npages as u64).unwrap(),
+            &*PAGE_MGR,
+        ) {
+            Ok(_) => (),
+            Err(_) => {
+                self.do_io_out(0x3f, (virt_addr.as_u64() >> 12) as u16);
+                unsafe {
+                    early_panic(0x3, 0x3);
+                }
+            }
+        }
+        loop {
+            let mut stop = false;
+            let pages = if npages_current >= PSC_ENTRY_LEN {
+                PSC_ENTRY_LEN
+            } else {
+                stop = true;
+                npages_current
+            };
+
+            self.set_memory_shared_ghcb_4kb(
+                virt_addr + MemoryDef::PAGE_SIZE_4K * PSC_ENTRY_LEN * time,
+                pages as usize,
+            );
+
+            if stop {
+                break;
+            }
+
+            npages_current -= PSC_ENTRY_LEN;
+            time += 1;
+        }
+    }
+
+    fn set_memory_shared_ghcb_4kb(&mut self, virt_addr: VirtAddr, npages: usize) {
+        const SVM_VMGEXIT_PSC: u64 = 0x80000010;
+        // Fill in shared_buffer
+        // SnpPscDesc has the exact same size.
+        let psc_desc: &mut SnpPscDesc =
+        unsafe { &mut *(self.ghcb.shared_buffer.as_mut_ptr() as *mut SnpPscDesc) };
+        *psc_desc = SnpPscDesc::default();
+
+        // FIXME
+        assert!(psc_desc.entries.len() >= npages);
+    
+        psc_desc.cur_entry = 0;
+        psc_desc.end_entry = (npages as u16).checked_sub(1).unwrap();
+    
+        let mut pa_addr = PhysAddr::new(virt_addr.as_u64());
+    
+        for i in 0..npages {
+            psc_desc.entries[i].set_entry(pa_addr.as_u64(), RmpPgOp::Shared, RmpPgSize::Size4k);
+            pa_addr += Page::<Size4KiB>::SIZE;
+        }
+    
+        loop {
+            // Use `read_volatile` to be safe
+            let cur_entry = unsafe { ptr::addr_of!(psc_desc.cur_entry).read_volatile() };
+            let end_entry = unsafe { ptr::addr_of!(psc_desc.end_entry).read_volatile() };
+    
+            if cur_entry > end_entry {
+                break;
+            }
+    
+            self.invalidate();
+    
+            let addr = ptr::addr_of!(self.ghcb.shared_buffer);
+            self.ghcb.save_area.sw_scratch = (VirtAddr::from_ptr(addr)).as_u64();
+            let offset: usize = ptr::addr_of!(self.ghcb.save_area.sw_scratch) as _;
+            self.set_offset_valid(offset);
+    
+            unsafe {
+                if self.vmgexit(SVM_VMGEXIT_PSC, 0, 0).is_err() {
+                    early_panic(4, 0x33);
+                }
+            }
+    
+            if psc_desc.reserved != 0 {
+                unsafe {
+                    early_panic(4, 0x35);
+                }
+            }
+            if (psc_desc.end_entry > end_entry) || (cur_entry > psc_desc.cur_entry) {
+                unsafe {
+                    early_panic(4, 0x36);
+                }
+            }
+        }
+    }
+
+
     pub fn set_memory_shared_2mb(&mut self, virt_addr: VirtAddr, npages: u64) {
         let mut time = 0u64;
         let mut npages_current = npages;
@@ -591,3 +739,6 @@ pub fn next_contig_gpa_range(
         return false;
     }
 }
+
+
+

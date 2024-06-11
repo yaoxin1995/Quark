@@ -3025,6 +3025,8 @@ impl MemoryDef {
     pub const CPUID_PAGE: u64 = Self::PHY_LOWER_ADDR + Self::QKERNEL_IMAGE_SIZE;
     pub const SECRET_PAGE: u64 = Self::CPUID_PAGE + Self::PAGE_SIZE;
     pub const GHCB_OFFSET: u64 = Self::SECRET_PAGE + Self::PAGE_SIZE;
+    pub const ATTESTATION_REQ_REQ: u64 = Self::GHCB_OFFSET + Self::PAGE_SIZE;
+    pub const ATTESTATION_REQ_RSP: u64 = Self::ATTESTATION_REQ_REQ + Self::PAGE_SIZE;
     pub const HYPERCALL_PARA_PAGE_OFFSET :u64 = MemoryDef::GUEST_HOST_SHARED_HEAP_OFFEST + MemoryDef::PAGE_SIZE*3;
 
     // file map area

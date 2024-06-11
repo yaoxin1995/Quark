@@ -58,6 +58,8 @@ use crate::qlib::cc::sev_snp::{check_amd, check_snp_support, set_cbit_mask};
 use crate::qlib::kernel::Kernel::{ENABLE_CC, IS_SEV_SNP};
 #[cfg(not(feature = "cc"))]
 use crate::qlib::kernel::IOURING;
+#[cfg(feature = "cc")]
+use sev::firmware::host::Firmware;
 
 pub const SANDBOX_UID_NAME: &str = "io.kubernetes.cri.sandbox-uid";
 
@@ -98,6 +100,9 @@ pub struct VirtualMachine {
     pub vmfd: VmFd,
     pub vcpus: Vec<Arc<KVMVcpu>>,
     pub elf: KernelELF,
+    #[cfg(feature = "cc")]
+    pub sev: Option<Firmware>,
+    
 }
 
 impl VirtualMachine {
@@ -685,6 +690,8 @@ impl VirtualMachine {
             vmfd: vm_fd,
             vcpus: vcpus,
             elf: elf,
+            #[cfg(feature = "cc")]
+            sev: None,
         };
 
         PerfGofrom(PerfType::Other);

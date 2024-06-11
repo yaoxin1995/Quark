@@ -173,7 +173,7 @@ impl VirtualMachine {
             }
         }
 
-        let cpuCount = cpuCount.max(2); // minimal 2 cpus
+        let cpuCount = cpuCount.max(3); // minimal 2 cpus
         VMS.write().vcpuCount = cpuCount; //VMSpace::VCPUCount();
         VMS.write().RandomVcpuMapping();
         let kernelMemRegionSize = QUARK_CONFIG.lock().KernelMemSize;
@@ -359,12 +359,13 @@ impl VirtualMachine {
         launcher.update_data(update_secret).unwrap();
         info!("update finished");
         let finish = Finish::new(None, None, [0u8; 32]);
-        let (vm_fd, _sev) = launcher.finish(finish).unwrap();
+        let (vm_fd, sev) = launcher.finish(finish).unwrap();
         let vm = Self {
             kvm: kvm,
             vmfd: vm_fd,
             vcpus: vcpus,
             elf: elf,
+            sev: Some(sev),
         };
 
         PerfGofrom(PerfType::Other);

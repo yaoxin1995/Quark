@@ -1296,6 +1296,8 @@ impl PageTables {
         end: VirtAddr,
         pagePool: &Allocator,
     ) -> Result<()> {
+
+
         if !start.is_aligned(MemoryDef::PAGE_SIZE_4K) {
             return Err(Error::UnallignedAddress(start.as_u64().to_string()));
         }
@@ -1303,6 +1305,7 @@ impl PageTables {
         if !end.is_aligned(MemoryDef::PAGE_SIZE_4K) {
             return Err(Error::UnallignedAddress(end.as_u64().to_string()));
         }
+
         let c_bit_mask = get_cbit_mask();
         let mut current = start;
         loop {
@@ -1316,6 +1319,7 @@ impl PageTables {
             let p2Idx = current.p2_index();
             let p1Idx = current.p1_index();
             let pt: *mut PageTable = self.GetRoot() as *mut PageTable;
+
             unsafe {
                 let pgdEntry = &(*pt)[p4Idx];
                 if pgdEntry.is_unused() {
@@ -1324,6 +1328,7 @@ impl PageTables {
 
                 let pudTbl = (pgdEntry.addr().as_u64() & !c_bit_mask) as *mut PageTable;
                 let pudEntry = &mut (*pudTbl)[p3Idx];
+
                 if pudEntry.is_unused() {
                     return Err(Error::AddressNotMap(addr));
                 } else if pudEntry.flags().contains(PageTableFlags::HUGE_PAGE) {
@@ -1343,9 +1348,10 @@ impl PageTables {
                     current += Page::<Size1GiB>::SIZE;
                     continue;
                 }
-
+ 
                 let pmdTbl = (pudEntry.addr().as_u64() & !c_bit_mask) as *mut PageTable;
                 let pmdEntry = &mut (*pmdTbl)[p2Idx];
+
                 if pmdEntry.is_unused() {
                     return Err(Error::AddressNotMap(addr));
                 } else if pmdEntry.flags().contains(PageTableFlags::HUGE_PAGE) {
@@ -1366,11 +1372,14 @@ impl PageTables {
                     continue;
                 }
 
+
                 let pteTbl = (pmdEntry.addr().as_u64() & !c_bit_mask) as *mut PageTable;
                 let pteEntry = &mut (*pteTbl)[p1Idx];
                 if pteEntry.is_unused() {
                     return Err(Error::AddressNotMap(addr));
                 }
+
+
                 let page = Page::<Size4KiB>::containing_address(current);
                 let old_addr = pteEntry.addr();
                 let old_flags = pteEntry.flags();

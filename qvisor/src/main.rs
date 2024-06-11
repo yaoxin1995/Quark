@@ -26,6 +26,8 @@
 #![feature(stmt_expr_attributes)]
 #![allow(invalid_reference_casting)]
 #![feature(btreemap_alloc)]
+#![feature(strict_provenance)]
+#![feature(trivial_bounds)]
 
 extern crate alloc;
 extern crate bit_field;

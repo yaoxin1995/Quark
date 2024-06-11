@@ -506,7 +506,6 @@ impl KVMVcpu {
                             //error!("HYPERCALL_WAKEUP_VCPU vcpu id is {:x}", vcpuId);
                             SyncMgr::WakeVcpu(vcpuId);
                         }
-
                         qlib::HYPERCALL_PRINT => {
                             let addr = para1;
                             let msg = unsafe { &*(addr as *const Print) };

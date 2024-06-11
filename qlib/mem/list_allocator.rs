@@ -375,12 +375,6 @@ impl HostAllocator {
     
     // should be called by host
     pub unsafe fn AllocGuestPrivatMem(&self, size: usize, align: usize) -> *mut u8 {
-        // use core::arch::asm;
-        // unsafe {
-        //     asm!(
-        //         "hlt",
-        //     )
-        // };  
         let layout = Layout::from_size_align(size, align)
             .expect("AllocGuestPrivatMem can't allocate memory");
  

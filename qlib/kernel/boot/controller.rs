@@ -36,7 +36,10 @@ use super::super::LOADER;
 use super::super::SHARESPACE;
 use super::process::*;
 use crate::qlib::linux::signal::*;
+use crate::qlib::cc::sev_snp::amd_snp_driver::SEV_SNP_DRIVER;
 //use crate::qlib::kernel::vcpu::CPU_LOCAL;
+use alloc::string::ToString;
+use crate::qlib::cc::sev_snp::amd_snp_driver::UserMemScope;
 
 pub fn ControllerProcessHandler() -> Result<()> {
     let task = Task::Current();
@@ -150,15 +153,49 @@ pub fn HandleSignal(signalArgs: &SignalArgs) {
     };
 }
 
+    // Returns a base64 of the sha512 of all chunks.
+    pub fn hash_chunks(chunks: Vec<Vec<u8>>) -> String {
+        use sha2::{Sha512, Digest};
+        use base64ct::{Base64, Encoding};
+
+        let mut hasher = Sha512::new();
+
+        for chunk in chunks.iter() {
+            hasher.update(chunk);
+        }
+
+        let res = hasher.finalize();
+
+        let base64 = Base64::encode_string(&res);
+
+        base64
+    } 
+        
+
 pub fn ControlMsgHandler(fd: *const u8) {
+    use base64ct::Encoding;
     let fd = fd as i32;
 
     let task = Task::Current();
     let mut msg = ControlMsg::default();
     Kernel::HostSpace::ReadControlMsg(fd, &mut msg as *mut _ as u64);
 
-    //info!("payload: {:?}", &msg.payload);
-    //defer!(error!("payload handling ends"));
+    info!("payload: {:?}", &msg.payload);
+    defer!(error!("payload handling ends"));
+
+    
+    let usermemscope = UserMemScope;
+    let report_buf = [0u8; 4096];
+
+    let ehd_chunks = vec![
+        "asdnajsndjksand".to_string().into_bytes()
+    ];
+    let nonce = hash_chunks(ehd_chunks);
+
+    let report_data_bin = base64ct::Base64::decode_vec(&nonce)
+														.map_err(|e| Error::Common(format!("get_report, Base64::decode_vec failed: {:?}", e))).unwrap();
+    let a = SEV_SNP_DRIVER.lock().get_attestation(usermemscope, report_data_bin.as_ptr().addr(), report_data_bin.len(), &report_buf as *const [u8] as *const u8 as usize, report_buf.len()).unwrap();
+    info!("atteation finished {:?}", a);
     match msg.payload {
         Payload::Pause => {
             let kernel = LOADER.Lock(task).unwrap().kernel.clone();
@@ -188,6 +225,7 @@ pub fn ControlMsgHandler(fd: *const u8) {
             StartRootContainer(ptr::null());
         }
         Payload::ExecProcess(process) => {
+
             StartExecProcess(fd, process);
         }
         Payload::WaitContainer(cid) => match LOADER.WaitContainer(cid) {
